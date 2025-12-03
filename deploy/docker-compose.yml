@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ../backend
+      dockerfile: ../deploy/Dockerfile.backend
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ../backend:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: ../deploy/Dockerfile.frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ../frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    command: npm run dev -- --host
+
+  vision:
+    build:
+      context: ../vision
+      dockerfile: ../deploy/Dockerfile.vision
+    volumes:
+      - ../vision:/app
+    # Note: Camera access may require additional privileges
+    # Use --device=/dev/video0 if needed
+    command: python main.py
+
+  # TODO: Add database service later
+  # database:
+  #   image: postgres:15
+  #   environment:
+  #     POSTGRES_DB: safesight
+  #     POSTGRES_USER: safesight
+  #     POSTGRES_PASSWORD: changeme
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+
+# volumes:
+#   postgres_data:
+
