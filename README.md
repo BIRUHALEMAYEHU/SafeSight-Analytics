@@ -36,3 +36,4 @@ Real-time face detection and database-based face matching.
 Object detection for selected dangerous or restricted items.
 Rule-based alert generation (e.g., wanted person detected, weapon detected in restricted zone).
 Web dashboard to view live feeds, alerts, and event history
+
