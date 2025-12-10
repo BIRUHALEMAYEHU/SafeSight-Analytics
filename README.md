@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+# SafeSight-Analytics
+SafeSight analytics: Intelligent Object and Face Recognition System for Real-Time Surveillance and Public Safety Applications.
+=======
 What our system is
 SafeSight Analytics is an intelligent, real-time video surveillance system for public safety.
 It connects to one or more CCTV/IP cameras (or webcams/phone cameras for demo) and analyzes live video in real time.
@@ -37,3 +41,4 @@ Object detection for selected dangerous or restricted items.
 Rule-based alert generation (e.g., wanted person detected, weapon detected in restricted zone).
 Web dashboard to view live feeds, alerts, and event history
 
+>>>>>>> f89fa62e8b350615bddd1a22fdc875ae4c5baa84
