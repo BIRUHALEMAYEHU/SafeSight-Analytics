@@ -1,73 +1,119 @@
 # Implementation Plan - SafeSight Analytics
 
 # Goal
-Build a real-time intelligent video surveillance system that detects faces (Persons of Interest) and dangerous objects (Weapons) from live camera feeds and alerts security operators via a web dashboard.
+Build a scalable, microservices-based intelligent video surveillance system. Beyond basic detection, it analyzes **complex scenarios** and **behavioral anomalies** to provide actionable intelligence for high-security environments (Police Stations, Banks, Prisons).
 
 ## User Review Required
 > [!IMPORTANT]
-> **Architecture Decision**: The Vision Service will act as the "Eye". It will process video locally and send **Metadata/Alerts** to the Backend. For the Live Video Feed on the dashboard, the Vision Service will expose a lightweight MJPEG stream.
+> **Architecture Update**: We are adopting a **Modular Microservices** approach. The Vision Service will be designed as a "Plugin Host" where different analysis modules (Face, Object, Crowd, Action) can be enabled/disabled per camera.
 
-## Proposed Architecture
+## Supported Scenarios (The "Intelligence")
+1.  **Identity Verification**: Detect "Wanted" persons or "VIPs".
+2.  **Threat Detection**: Detect weapons (guns, knives).
+3.  **Contextual Alerts**:
+    *   **Armed & Un-uniformed**: "Person with weapon" + "No Uniform" = High Alert.
+    *   **Restricted Zone Intrusion**: "Person detected" in "No People Area" (e.g., server room, prison perimeter).
+4.  **Crowd Analysis**:
+    *   **Gathering Detection**: "Group size > 5" in sensitive areas (e.g., prison yard, bank lobby).
+5.  **Behavioral Anomalies**:
+    *   **Violence Detection**: Human-to-human fighting (Punching/Kicking).
+
+## Architecture: Microservices
 
 ### 1. Vision Service (The "Eye")
-- **Responsibility**: Capture video, run AI models, stream video, send alerts.
-- **Tech**: Python, OpenCV, YOLOv8 (Objects), face_recognition (Faces).
-- **Flow**:
-    1.  Read Frame.
-    2.  **Detect Objects**: Is there a weapon? -> If yes, send Alert to Backend.
-    3.  **Detect Faces**: Is there a face? -> Encode -> Compare with Local Cache of "Wanted Persons". -> If match, send Alert to Backend.
-    4.  **Annotate Frame**: Draw boxes/names on the frame.
-    5.  **Stream**: Serve processed frame via HTTP (MJPEG) for the Frontend to display.
+*   **Role**: High-performance video processing pipeline.
+*   **Structure**: Modular "Analyzers" that run in parallel or sequence.
+    *   `FaceAnalyzer`: Face detection & recognition.
+    *   `ObjectAnalyzer`: YOLOv8 for weapons/people.
+    *   `CrowdAnalyzer`: Density estimation / Head counting.
+    *   `ActionAnalyzer`: Pose estimation / Violence detection models.
+*   **Output**: Stream of "Events" (JSON) sent to the Backend.
 
-### 2. Backend Service (The "Brain")
-- **Responsibility**: Manage data, handle alerts, communicate with Frontend.
-- **Tech**: FastAPI, PostgreSQL (Database), WebSockets.
-- **Flow**:
-    -   **REST API**: Manage "Persons of Interest" (CRUD), Login/Auth, Retrieve Alert History.
-    -   **WebSockets**: Push real-time alerts from Vision -> Backend -> Frontend.
+### 2. Backend Service (The "Brain" & "Rules Engine")
+*   **Role**: Data aggregation, Rule evaluation, and API management.
+*   **Core Components**:
+    *   **Rules Engine**: Evaluates complex logic.
+        *   *Example Rule*: `IF event.type == 'person_detected' AND zone.type == 'restricted' THEN trigger_alert('Intrusion')`
+    *   **Event Bus**: Handles high-throughput messages from Vision.
+    *   **API**: REST endpoints for configuration and history.
 
-### 3. Frontend (The "Dashboard")
-- **Responsibility**: Display live insights and controls.
-- **Tech**: React, Tailwind CSS.
-- **Features**:
-    -   **Live Monitor**: Grid view of camera feeds (connecting to Vision MJPEG stream).
-    -   **Alert Feed**: Real-time sidebar showing "Weapon Detected" or "Person Identified: John Doe".
-    -   **Management**: Admin panel to upload photos of "Banned/VIP" individuals.
+### 3. Frontend Service (The "Dashboard")
+*   **Role**: Real-time Command & Control Center.
+*   **Features**:
+    *   **Live Matrix**: View multiple camera feeds.
+    *   **Interactive Map**: Define "Restricted Zones" by drawing on the camera feed.
+    *   **Alert Feed**: Prioritized alerts (Critical vs Warning).
+
+### 4. Database Service
+*   **PostgreSQL**: Structured data (Users, Logs, Definitions).
+*   **Redis** (Optional): Fast caching for real-time state (e.g., "Current Crowd Count").
+
+---
+
+## Algorithmic Methodology & Theory
+
+### 1. Object Detection (The "What")
+*   **Model**: YOLOv8 (You Only Look Once).
+*   **Theory**: Unlike older sliding-window approaches, YOLO treats detection as a single regression problem. It divides the image into a grid and predicts bounding boxes and class probabilities for each grid cell simultaneously.
+*   **Application**: We use this to detect "Person", "Knife", and "Gun" classes in real-time (30+ FPS) with high accuracy, even in cluttered scenes.
+
+### 2. Face Recognition (The "Who")
+*   **Pipeline**:
+    1.  **Detection**: Locate faces using HOG (Histogram of Oriented Gradients) or CNN (Convolutional Neural Network).
+    2.  **Alignment**: Warp the face so eyes and mouth are centered (using 68 facial landmarks).
+    3.  **Encoding**: Pass the aligned face through a Deep ResNet to generate a **128-dimensional vector** (embedding). This vector represents the unique features of the face.
+    4.  **Matching**: Calculate the **Euclidean Distance** between the live face vector and our database vectors. If distance < 0.6 (threshold), it's a match.
+
+### 3. Crowd & Behavior Analysis (The "Context")
+*   **Crowd Density**: We map camera perspective to a 2D plane. We count the centroids of "Person" bounding boxes within a defined polygon (Restricted Zone). If count > Threshold, trigger alert.
+*   **Violence Detection**: We use **Pose Estimation** to track keypoints (wrists, elbows, shoulders). We analyze the *velocity* and *trajectory* of these points. Sudden, high-velocity converging movements (punching/kicking) trigger a "Violence" probability score.
+
+### 4. Vision Event Format (Internal)
+The Vision Service sends this JSON payload to the Backend:
+```json
+{
+  "type": "alert",
+  "camera_id": "cam_01",
+  "timestamp": "2023-10-27T10:00:00Z",
+  "detection": {
+    "label": "gun",
+    "confidence": 0.95,
+    "bbox": [100, 200, 50, 50]
+  },
+  "snapshot": "base64_encoded_image..."
+}
+```
 
 ---
 
 ## Development Phases
 
-### Phase 1: Foundation & Database
-- [ ] **Database**: Setup PostgreSQL (via Docker).
-- [ ] **Schema**: Create tables for `Users`, `PersonsOfInterest` (Name, Photo, Status), `Alerts` (Type, Timestamp, Image).
-- [ ] **Backend**: Create API endpoints to add/list "Persons of Interest".
+### Phase 1: Foundation & Microservices Setup
+- [ ] **Infrastructure**: Docker Compose with Backend, Vision, Frontend, and Postgres.
+- [ ] **Communication**: Establish HTTP/WebSocket link between services.
+- [ ] **Database**: Schema for `Cameras`, `Zones`, `Rules`, `Alerts`.
 
-### Phase 2: Vision Engine (The Core)
-- [ ] **Object Detection**: Integrate YOLOv8 to detect 'person', 'knife', 'gun'.
-- [ ] **Face Recognition**: Integrate `face_recognition` library.
-    -   *Sync Mechanism*: Vision service needs to fetch known face encodings from Backend on startup/update.
-- [ ] **Streaming**: Implement MJPEG streaming endpoint in Vision service.
+### Phase 2: Core Vision Modules (The Basics)
+- [ ] **Module 1: Face Recognition**: Identify known individuals.
+- [ ] **Module 2: Object Detection**: YOLOv8 integration for People and Weapons.
+- [ ] **Basic Rules**: Trigger alert if "Weapon" or "Wanted Person" is seen.
 
-### Phase 3: Real-time Integration
-- [ ] **Communication**: Connect Vision to Backend (HTTP POST for alerts).
-- [ ] **WebSockets**: specific WebSocket endpoint for Frontend to receive "Instant Alerts".
-- [ ] **Frontend Dashboard**: Build the Live View and Alert Sidebar.
+### Phase 3: Advanced Scenario Logic
+- [ ] **Zone Management**: Frontend UI to draw polygons on camera feeds (defining "Restricted Areas").
+- [ ] **Crowd Counting**: Implement logic to count bounding boxes within a specific polygon.
+- [ ] **Context Rule**: Implement "Uniform Detection" (Color histogram or specific object class) to distinguish security personnel.
 
-### Phase 4: Polish & Demo
-- [ ] **Alert Logic**: Add "cooldown" to prevent spamming alerts for the same person every millisecond.
-- [ ] **UI Polish**: Make it look "Premium" (Dark mode, glassmorphism).
+### Phase 4: Behavioral Analysis (Experimental)
+- [ ] **Violence Detection**: Integrate Pose Estimation (e.g., MediaPipe or YOLO-Pose) to detect rapid, aggressive limb movements.
+- [ ] **Optimization**: Ensure all models run smoothly in real-time.
 
 ## Verification Plan
 
 ### Automated Tests
-- Backend: Test API endpoints (Create Person, Get Alerts).
-- Vision: Unit test detection logic with static images.
+- **Rule Engine**: Unit tests for logic (e.g., "Does a person in a restricted zone trigger an alert?").
+- **Integration**: Mock Vision events and verify Backend creates an alert.
 
 ### Manual Verification
-- **End-to-End Demo**:
-    1.  Upload a photo of myself as "Wanted".
-    2.  Walk in front of the camera.
-    3.  **Expectation**: Dashboard immediately flashes RED with my name and timestamp.
-    4.  Hold a mock weapon (e.g., a banana or toy).
-    5.  **Expectation**: Dashboard alerts "Weapon Detected".
+- **Scenario 1 (Crowd)**: Gather 3-4 people in front of the camera. Verify "Gathering Alert".
+- **Scenario 2 (Zone)**: Draw a "Restricted Zone" on the screen. Walk into it. Verify "Intrusion Alert".
+- **Scenario 3 (Context)**: Hold a weapon while wearing a specific color (simulating uniform) vs plain clothes. Verify different alert levels.
