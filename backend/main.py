@@ -5,6 +5,9 @@ FastAPI REST API for the SafeSight Analytics system
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
+from utils.camera import VideoCamera 
 
 app = FastAPI(
     title="SafeSight Analytics API",
@@ -21,6 +24,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+gen_camera = VideoCamera()
+
+def gen(camera):
+    while True:
+        frame = camera.get_frame()
+        if frame is None:
+            break
+        
+        # Yield the frame in MJPEG format
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')
+
+@app.get("/video_feed")
+async def video_feed():
+    return StreamingResponse(gen(gen_camera), media_type="multipart/x-mixed-replace; boundary=frame")
 
 @app.get("/")
 async def root():
@@ -30,10 +48,4 @@ async def root():
         "version": "0.1.0",
         "status": "running"
     }
-
-
-@app.get("/health")
-async def health():
-    """Health check endpoint"""
-    return {"status": "ok"}
 
