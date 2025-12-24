@@ -1,11 +1,13 @@
 import cv2
 import time
-from deepface import DeepFace
+# from deepface import DeepFace # Moving to Vision Service
 import os
+
 class VideoCamera:
-    def __init__(self):
-        self.video = cv2.VideoCapture(0)
-        self.known_faces_db = "known_faces" # will be replaced images from the database
+    def __init__(self, source=0):
+        # source can be integer (webcam index) or string (RTSP URL or video file)
+        self.video = cv2.VideoCapture(source)
+        self.known_faces_db = "known_faces"
         self.current_name = "Scanning..."
         self.frame_count = 0
         self.face_detections = [] 
@@ -16,8 +18,14 @@ class VideoCamera:
     def get_frame(self):
         success, frame = self.video.read()
         if not success:
+            # If reading failed (e.g., end of video), reset if it's a file or return None
             return None
         
+        self.frame_count += 1
+        
+        # DeepFace logic commented out for Phase 2 Refactoring
+        # Logic will be moved to separate Vision Service
+        """
         if self.frame_count % 10 == 0:
             try:
                 # 'find' looks through the folder and matches the face
@@ -33,7 +41,7 @@ class VideoCamera:
                     if not df.empty:
                         row = df.iloc[0]
                         full_path = row['identity']
-                        name = os.path.basename(os.path.dirname(full_path)) # replaced by the name in the database
+                        name = os.path.basename(os.path.dirname(full_path)) 
                         
                         self.face_detections.append({
                             "name": name,
@@ -45,9 +53,12 @@ class VideoCamera:
             except Exception as e:
                 print(f"Matching error: {e}")
                 self.current_name = "No Face"
+        """
         
-        frame = cv2.flip(frame, 1)
+        # Mirror effect only for local webcam (source 0)
+        # frame = cv2.flip(frame, 1) # Optional, depends on camera
 
+        # Draw placeholders for detections (to be populated by Vision Service results in future)
         for face in self.face_detections:
             x, y, w, h = face['x'], face['y'], face['w'], face['h']
             name = face['name']
