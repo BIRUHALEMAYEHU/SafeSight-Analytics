@@ -5,6 +5,10 @@ import pytest
 import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from app.db.base import Base
+from main import app
+from app.db.session import get_db
+from httpx import AsyncClient
+
 
 # Use in-memory SQLite for fast tests
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -16,6 +20,7 @@ def event_loop():
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
+
 
 
 @pytest.fixture(scope="function")
@@ -47,3 +52,15 @@ async def db_session(test_engine):
     
     async with AsyncTestSession() as session:
         yield session
+
+@pytest.fixture(scope="function")
+async def async_client(db_session):
+    """Async client with database dependency override"""
+    async def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    async with AsyncClient(app=app, base_url="http://test") as ac:
+        yield ac
+    app.dependency_overrides.clear()
+
