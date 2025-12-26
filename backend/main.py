@@ -25,7 +25,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-gen_camera = VideoCamera()
+from fastapi.staticfiles import StaticFiles
+import os
+if not os.path.exists("static"):
+    os.makedirs("static")
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+from app.api.api_v1.api import api_router
+app.include_router(api_router, prefix="/api/v1")
+
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from fastapi import Depends, HTTPException
+from app.db.session import get_db
+from app.models.camera import Camera as CameraModel
+
+# gen_camera = VideoCamera() # Removed global instance
 
 
 
@@ -49,8 +64,33 @@ async def gen(camera):
         print("Cleaning up video stream resources...")
 
 @app.get("/video_feed")
-async def video_feed():
-    return StreamingResponse(gen(gen_camera), media_type="multipart/x-mixed-replace; boundary=frame")
+async def video_feed(
+    camera_id: int = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Stream video from a specific camera.
+    If camera_id is not provided, defaults to local webcam (0).
+    """
+    source = 0 # Default to local webcam
+    
+    if camera_id:
+        result = await db.execute(select(CameraModel).where(CameraModel.id == camera_id))
+        camera_db = result.scalars().first()
+        if not camera_db:
+             raise HTTPException(status_code=404, detail="Camera not found")
+        
+        # Check if rtsp_url is an integer (webcam index) or string
+        if camera_db.rtsp_url and camera_db.rtsp_url.isdigit():
+             source = int(camera_db.rtsp_url)
+        elif camera_db.rtsp_url:
+             source = camera_db.rtsp_url
+    
+    # Instantiate camera for this stream
+    # Note: For production, this needs a pool manager to avoid opening multiple connections to same camera
+    camera = VideoCamera(source=source)
+    
+    return StreamingResponse(gen(camera), media_type="multipart/x-mixed-replace; boundary=frame")
 
 @app.get("/")
 async def root():
