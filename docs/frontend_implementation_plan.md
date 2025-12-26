@@ -709,8 +709,6 @@ You're done when:
 - [ ] Hamburger menu opens sidebar
 - [ ] All pages are accessible and styled
 - [ ] Everything uses the dark, professional theme
-- [ ] Looks like a CIA command center, not a web app
-
 ---
 
 ## Design Notes
