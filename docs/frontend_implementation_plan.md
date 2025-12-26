@@ -87,7 +87,7 @@ This is where operators spend 90% of their time. It's all about the video feeds.
 
 ---
 
-## Color Palette (CIA-Level Dark Theme)
+## Color Palette
 
 ### Background Colors
 - **Primary Background**: `#0A0E1A` (Deep navy, almost black)
