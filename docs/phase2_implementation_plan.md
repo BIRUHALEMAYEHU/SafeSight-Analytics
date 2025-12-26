@@ -529,7 +529,6 @@ Phase 2 is complete when:
 
 ## What Comes After This
 
-Once Phase 2 is done, we'll have a working AI surveillance system. But it's still basic.
 
 **Phase 3** will add:
 - **Zone management**: Draw restricted areas on camera feeds
@@ -537,8 +536,3 @@ Once Phase 2 is done, we'll have a working AI surveillance system. But it's stil
 - **Context rules**: "Armed person + no uniform = high alert"
 - **WebSockets**: Real-time alerts to frontend
 
-But first, let's make Phase 2 rock-solid. Get the core AI working, then we'll make it smarter.
-
----
-
-**Let's build this.** 🚀
