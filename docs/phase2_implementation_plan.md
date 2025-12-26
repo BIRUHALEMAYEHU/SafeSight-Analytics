@@ -1,381 +1,333 @@
-# Phase 2 Implementation Plan - Core Vision Modules
+# Phase 2: Building the AI Brain
 
-## Goal
-Implement the foundational AI detection capabilities that transform raw video into actionable intelligence. This phase focuses on **Face Recognition** and **Object Detection** with a basic rules engine to trigger alerts.
+## What We're Actually Building
 
----
+Right now, our system can stream video. That's it. It's just a fancy webcam viewer.
 
-## Prerequisites: Phase 1 Completion Status ✅
+Phase 2 is where we add the **intelligence**. We're teaching the system to:
+- Recognize faces (Who is this person?)
+- Detect objects (Is that a weapon?)
+- Make decisions (Should we alert someone?)
 
-Before starting Phase 2, we verified that all Phase 1 deliverables are complete:
-
-### Infrastructure & DevOps
-- ✅ **Docker Compose Configuration** (`deploy/docker-compose.yml`)
-  - PostgreSQL database service configured
-  - Backend, Frontend, Vision services defined
-  - Volume mounts for hot-reloading
-  - Health checks implemented
-
-- ✅ **Development Environment**
-  - Python 3.11 installed and configured (`venv311`)
-  - Node.js v22.14.0 installed
-  - All backend dependencies installed (FastAPI, SQLAlchemy, Alembic, etc.)
-  - All frontend dependencies installed (Next.js, React, Tailwind)
-
-### Database Layer
-- ✅ **Database Schema** (`backend/alembic/versions/e0a337ae61a8_*.py`)
-  - `cameras` table (id, name, rtsp_url, location, is_active)
-  - `persons_of_interest` table (id, name, type, photo_path, face_encoding, notes)
-  - `alerts` table (id, event_id, type, priority, status, created_at)
-  - `events` table (id, camera_id, type, timestamp, metadata, snapshot_path)
-  - `zones` table (id, camera_id, name, type, polygon, is_active)
-  - `rules` table (id, name, conditions, action, is_active)
-  - `users` table (id, username, hashed_password, email, role)
-
-- ✅ **Database Migrations**
-  - Alembic initialized and configured
-  - Initial migration created and tested
-  - Auto-migration on container startup (`alembic upgrade head`)
-
-### Backend API
-- ✅ **RESTful Endpoints** (`backend/app/api/api_v1/endpoints/`)
-  - `GET/POST/PUT/DELETE /api/v1/cameras` - Camera management
-  - `GET/POST/PUT/DELETE /api/v1/persons` - Persons of Interest CRUD
-  - Async database operations with SQLAlchemy
-  - Pydantic schemas for validation (`backend/app/schemas/`)
-
-- ✅ **Video Streaming** (`backend/main.py`)
-  - `/video_feed` endpoint serving MJPEG stream
-  - `VideoCamera` utility class (`backend/utils/camera.py`)
-  - Real-time webcam capture with OpenCV
-  - **Verified**: Live video stream tested and working
-
-### Frontend
-- ✅ **Next.js Application** (Migrated from Vite)
-  - App Router structure (`frontend/app/`)
-  - Tailwind CSS configured
-  - TypeScript setup
-  - Basic layout and page structure
-
-### Vision Service
-- ✅ **Video Capture Pipeline** (`vision/main.py`)
-  - OpenCV integration
-  - Frame reading from camera/RTSP
-  - Basic processing loop structure
-
-- ✅ **Dependencies Prepared** (`vision/requirements.txt`)
-  - `opencv-python==4.8.1.78`
-  - `numpy<2.0`
-  - `face_recognition` (added, ready to install)
-  - `dlib` (added, ready to install)
-
-### Communication
-- ✅ **HTTP REST API** - Backend exposes endpoints for Vision service
-- ⚠️ **WebSockets** - Not yet implemented (deferred to Phase 3)
-  - Current workaround: HTTP polling or POST for events
+By the end of this phase, the system will watch the cameras 24/7 and automatically flag anything suspicious.
 
 ---
 
-## What Phase 1 Enables for Phase 2
+## What Phase 1 Already Gave Us
 
-The completed Phase 1 infrastructure provides:
+Before we start, let's confirm we have everything we need from Phase 1:
 
-1. **Data Persistence**: We can store detected faces and objects in the database
-2. **API Integration**: Vision service can POST events to `/api/v1/events`
-3. **Person Registry**: Backend can serve list of known persons to Vision service
-4. **Video Pipeline**: Proven working camera capture and streaming
-5. **Development Workflow**: Hot-reload, migrations, and testing framework ready
+### Infrastructure ✅
+- **Docker setup**: Database, backend, frontend all configured
+- **Python 3.11**: Installed in `venv311` (because 3.14 broke everything)
+- **Video pipeline**: We can capture frames from cameras
+- **Database**: All tables created (cameras, persons, alerts, events)
+
+### Backend API ✅
+- **Camera endpoints**: `/api/v1/cameras` (add, list, edit, delete)
+- **Person endpoints**: `/api/v1/persons` (manage who we're watching for)
+- **Video streaming**: `/video_feed` works (we tested it!)
+
+### What's Missing
+- **WebSockets**: We'll add this in Phase 3 for real-time alerts
+- **AI models**: That's what we're building now
+
+If any of the above isn't working, **stop here** and fix it first. Everything in Phase 2 depends on this foundation.
 
 ---
 
-## Theoretical Foundations
+## How Face Recognition Actually Works
 
-### 1. Face Recognition Pipeline
+Let me break down the theory without the academic jargon.
 
-#### 1.1 Face Detection (Finding the Face)
-**Algorithm**: Histogram of Oriented Gradients (HOG) or CNN-based detector
-- **How it works**: 
-  - HOG: Analyzes gradients (changes in brightness) to find face-like patterns
-  - CNN: Uses a trained neural network to locate faces regardless of angle/lighting
-- **Output**: Bounding box coordinates `(x, y, width, height)` for each detected face
+### Step 1: Find the Face
+**Algorithm**: HOG (Histogram of Oriented Gradients) or CNN
 
-#### 1.2 Face Alignment (Normalizing the Face)
+Think of it like this: The algorithm looks for patterns of light and dark that match a face shape. Eyes are darker than the forehead. The nose casts a shadow. It's looking for these patterns.
+
+**Output**: A box around the face with coordinates (x, y, width, height)
+
+### Step 2: Straighten the Face
 **Algorithm**: 68-point facial landmark detection
-- **How it works**: 
-  - Identifies key points: eyes, nose tip, mouth corners, jawline
-  - Applies affine transformation to "straighten" the face (eyes horizontal, centered)
-- **Why**: Ensures consistent encoding regardless of head tilt
 
-#### 1.3 Face Encoding (Creating the "Fingerprint")
-**Algorithm**: Deep Residual Network (ResNet-34)
-- **How it works**:
-  - Passes the aligned face through 34 layers of convolutional neural network
-  - Final layer outputs a **128-dimensional vector** (the "face encoding")
-  - This vector represents unique facial features in mathematical space
-- **Key Property**: Faces of the same person produce similar vectors (small Euclidean distance)
+The algorithm finds 68 specific points on the face (corners of eyes, tip of nose, etc.). Then it rotates and scales the image so the eyes are horizontal and centered. This ensures we're always comparing "apples to apples" even if someone tilts their head.
 
-#### 1.4 Face Matching (Identification)
-**Algorithm**: Euclidean Distance Comparison
-- **Formula**: `distance = sqrt(sum((encoding1[i] - encoding2[i])^2))`
-- **Decision Rule**:
-  - If `distance < 0.6`: **MATCH** (Same person)
-  - If `distance >= 0.6`: **NO MATCH** (Different person)
-- **Why 0.6?**: Empirically determined threshold that balances false positives vs false negatives
+**Why this matters**: Without this step, the same person looking left vs looking right would seem like different people.
 
----
+### Step 3: Create the "Fingerprint"
+**Algorithm**: Deep ResNet (34-layer neural network)
 
-### 2. Object Detection (YOLOv8)
+This is the magic part. The neural network has been trained on millions of faces. It converts the face into a list of 128 numbers (called an "encoding" or "embedding"). These numbers represent unique facial features in a way that's consistent across different photos.
 
-#### 2.1 YOLO Architecture
-**Algorithm**: You Only Look Once v8 (Single-shot detector)
-- **How it works**:
-  1. Divides image into a grid (e.g., 13x13)
-  2. Each grid cell predicts:
-     - **Bounding boxes** (x, y, w, h)
-     - **Confidence scores** (probability of object presence)
-     - **Class probabilities** (person, gun, knife, etc.)
-  3. Applies Non-Maximum Suppression (NMS) to remove duplicate detections
+**Example**: 
+- Your face might be: `[0.23, -0.45, 0.67, ..., 0.12]` (128 numbers)
+- My face might be: `[-0.12, 0.89, -0.34, ..., 0.56]` (completely different)
 
-#### 2.2 Classes We Detect
-- **Person**: For crowd counting, zone intrusion
-- **Gun**: Firearm detection
-- **Knife**: Blade/weapon detection
+### Step 4: Compare and Match
+**Algorithm**: Euclidean distance
 
-#### 2.3 Confidence Threshold
-- **Minimum confidence**: 0.5 (50%)
-- **Rationale**: Balance between catching threats and avoiding false alarms
-
----
-
-## System Architecture
-
-### Module Design
+To check if two faces are the same person, we calculate the "distance" between their encodings:
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Vision Service                          │
-│                                                             │
-│  ┌──────────────┐    ┌──────────────┐   ┌──────────────┐  │
-│  │ Video Input  │───▶│ Frame Queue  │──▶│  Analyzers   │  │
-│  │  (Camera)    │    │  (Buffer)    │   │              │  │
-│  └──────────────┘    └──────────────┘   │ ┌──────────┐ │  │
-│                                          │ │  Face    │ │  │
-│                                          │ │ Analyzer │ │  │
-│                                          │ └──────────┘ │  │
-│                                          │ ┌──────────┐ │  │
-│                                          │ │ Object   │ │  │
-│                                          │ │ Analyzer │ │  │
-│                                          │ └──────────┘ │  │
-│                                          └──────┬───────┘  │
-│                                                 │          │
-│                                                 ▼          │
-│                                          ┌──────────────┐  │
-│                                          │ Event Queue  │  │
-│                                          └──────┬───────┘  │
-└─────────────────────────────────────────────────┼──────────┘
-                                                  │
-                                                  │ HTTP POST
-                                                  ▼
-┌─────────────────────────────────────────────────────────────┐
-│                     Backend Service                         │
-│                                                             │
-│  ┌──────────────┐    ┌──────────────┐   ┌──────────────┐  │
-│  │ Event        │───▶│ Rules Engine │──▶│ Alert        │  │
-│  │ Receiver     │    │              │   │ Generator    │  │
-│  └──────────────┘    └──────────────┘   └──────┬───────┘  │
-│                                                 │          │
-│                                                 ▼          │
-│                                          ┌──────────────┐  │
-│                                          │  Database    │  │
-│                                          │  (Postgres)  │  │
-│                                          └──────────────┘  │
-└─────────────────────────────────────────────────────────────┘
+distance = sqrt((encoding1[0] - encoding2[0])² + (encoding1[1] - encoding2[1])² + ... + (encoding1[127] - encoding2[127])²)
 ```
 
-### Data Flow
+**Decision rule**:
+- If distance < 0.6: **Same person** ✅
+- If distance >= 0.6: **Different person** ❌
 
-1. **Video Capture**: Camera → OpenCV → Frame (numpy array)
-2. **Analysis**: Frame → Analyzers → Events (JSON)
-3. **Event Transmission**: Vision → Backend (HTTP POST)
-4. **Rule Evaluation**: Backend → Rules Engine → Alert Decision
-5. **Storage**: Backend → Database (Alert record)
-6. **Notification**: Backend → Frontend (WebSocket - Phase 3)
+**Why 0.6?** It's been tested on thousands of faces. Lower than 0.6 means too many false matches. Higher means we miss real matches.
 
 ---
 
-## Deliverables
+## How Object Detection Works (YOLOv8)
 
-### 1. Face Analyzer Module
-**File**: `vision/analyzers/face_analyzer.py`
+YOLO stands for "You Only Look Once" - it's designed for speed.
 
-**Responsibilities**:
-- Detect faces in frame
-- Encode detected faces
-- Compare against known persons database
-- Generate "Person Identified" events
+### The Old Way (Slow)
+Traditional object detection would:
+1. Slide a window across the image
+2. Check each window: "Is this a gun? No. Is this a gun? No. Is this a gun? Yes!"
+3. Repeat thousands of times
 
-**Key Methods**:
+This is **slow** (maybe 1-2 FPS).
+
+### The YOLO Way (Fast)
+YOLO looks at the entire image **once**:
+1. Divide the image into a grid (e.g., 13x13 = 169 cells)
+2. Each cell predicts: "Do I contain an object? If yes, what is it and where exactly?"
+3. All predictions happen simultaneously
+
+This is **fast** (30+ FPS on a decent computer).
+
+### What We're Detecting
+- **Person**: For counting people in zones
+- **Gun**: Firearms
+- **Knife**: Bladed weapons
+
+### Confidence Threshold
+We only trust detections above 50% confidence. Below that, it's probably a false alarm (like thinking a phone is a gun).
+
+---
+
+## The System Architecture
+
+Here's how all the pieces fit together:
+
+```
+Camera → OpenCV → Frame (image)
+                    ↓
+            Face Analyzer → "Is this John Doe?"
+                    ↓
+           Object Analyzer → "Is this a weapon?"
+                    ↓
+              Event (JSON) → Send to Backend
+                    ↓
+            Rules Engine → "Should we alert?"
+                    ↓
+              Database → Store alert
+```
+
+### Data Flow Example
+
+1. **Camera captures frame** (30 times per second)
+2. **Face Analyzer processes it**:
+   - Finds 2 faces
+   - Encodes them
+   - Compares to database of 50 known persons
+   - Match found: "John Doe (WANTED)"
+3. **Object Analyzer processes same frame**:
+   - Detects 1 gun (95% confidence)
+4. **Vision service sends event to Backend**:
+   ```json
+   {
+     "type": "face_detected",
+     "camera_id": "CAM-01",
+     "timestamp": "2024-01-15T10:30:00Z",
+     "person_name": "John Doe",
+     "confidence": 0.87,
+     "bounding_box": [100, 200, 50, 75]
+   }
+   ```
+5. **Backend Rules Engine evaluates**:
+   - "Person detected" + "Person type is WANTED" = **CRITICAL ALERT**
+6. **Backend stores alert in database**
+7. **Frontend shows popup** (Phase 3)
+
+---
+
+## What We're Building (The Deliverables)
+
+### 1. Face Analyzer (`vision/analyzers/face_analyzer.py`)
+
+**What it does**: Finds faces, encodes them, matches against known persons.
+
+**Key functions**:
 ```python
 class FaceAnalyzer:
-    def __init__(self, known_persons: List[Person]):
-        """Load known face encodings from database"""
+    def analyze(self, frame):
+        """Main entry point - process one frame"""
+        # 1. Find all faces in frame
+        # 2. Encode each face
+        # 3. Compare to known persons
+        # 4. Return list of events
         
-    def analyze(self, frame: np.ndarray) -> List[Event]:
-        """Process frame and return face detection events"""
+    def _detect_faces(self, frame):
+        """Find face locations"""
         
-    def _detect_faces(self, frame) -> List[BoundingBox]:
-        """Find all faces in frame"""
+    def _encode_face(self, face_image):
+        """Convert face to 128-d vector"""
         
-    def _encode_face(self, face_image) -> np.ndarray:
-        """Generate 128-d encoding"""
-        
-    def _match_face(self, encoding) -> Optional[Person]:
-        """Compare against known persons"""
+    def _match_face(self, encoding):
+        """Compare to database, return name if match"""
 ```
 
-### 2. Object Analyzer Module
-**File**: `vision/analyzers/object_analyzer.py`
+**Input**: A video frame (numpy array)  
+**Output**: List of events (JSON objects)
 
-**Responsibilities**:
-- Detect objects (person, gun, knife)
-- Filter by confidence threshold
-- Generate "Object Detected" events
+### 2. Object Analyzer (`vision/analyzers/object_analyzer.py`)
 
-**Key Methods**:
+**What it does**: Detects weapons and people using YOLOv8.
+
+**Key functions**:
 ```python
 class ObjectAnalyzer:
-    def __init__(self, model_path: str, confidence_threshold: float = 0.5):
-        """Load YOLOv8 model"""
+    def analyze(self, frame):
+        """Main entry point - process one frame"""
+        # 1. Run YOLO model
+        # 2. Filter for our target classes (person, gun, knife)
+        # 3. Filter by confidence (>50%)
+        # 4. Return list of events
         
-    def analyze(self, frame: np.ndarray) -> List[Event]:
-        """Process frame and return object detection events"""
-        
-    def _detect_objects(self, frame) -> List[Detection]:
+    def _detect_objects(self, frame):
         """Run YOLO inference"""
         
-    def _filter_detections(self, detections) -> List[Detection]:
-        """Apply confidence threshold and class filter"""
+    def _filter_detections(self, detections):
+        """Keep only high-confidence, relevant objects"""
 ```
 
-### 3. Event Schema
-**File**: `vision/models/event.py`
+**Input**: A video frame  
+**Output**: List of events
 
+### 3. Rules Engine (`backend/app/services/rules_engine.py`)
+
+**What it does**: Decides if an event should trigger an alert.
+
+**The rules** (for now, we keep it simple):
+1. **IF** face detected **AND** person is WANTED → **CRITICAL alert**
+2. **IF** gun detected → **CRITICAL alert**
+3. **IF** knife detected → **WARNING alert**
+
+Later (Phase 3), we'll add complex rules like "armed person + no uniform = high alert".
+
+**Key function**:
 ```python
-class Event:
-    type: str  # "face_detected", "object_detected"
-    camera_id: str
-    timestamp: datetime
-    confidence: float
-    bounding_box: BoundingBox
-    metadata: dict  # e.g., {"person_name": "John Doe", "object_class": "gun"}
-    snapshot: bytes  # Cropped image of detection
+class RulesEngine:
+    def evaluate(self, event):
+        """Check if event triggers an alert"""
+        # Look at event type and metadata
+        # Apply rules
+        # Return Alert object or None
 ```
 
-### 4. Basic Rules Engine
-**File**: `backend/app/services/rules_engine.py`
+### 4. Event Endpoint (`backend/app/api/api_v1/endpoints/events.py`)
 
-**Rules**:
-1. **IF** `event.type == "face_detected"` **AND** `person.type == "WANTED"` **THEN** create CRITICAL alert
-2. **IF** `event.type == "object_detected"` **AND** `object_class == "gun"` **THEN** create CRITICAL alert
-3. **IF** `event.type == "object_detected"` **AND** `object_class == "knife"` **THEN** create WARNING alert
+**What it does**: Receives events from Vision service, runs rules, stores alerts.
 
-### 5. Backend Event Endpoint
-**File**: `backend/app/api/api_v1/endpoints/events.py`
-
+**Endpoint**:
 ```python
 @router.post("/events")
-async def receive_event(event: EventCreate, db: AsyncSession):
-    """
-    Receive event from Vision service
-    1. Validate event
-    2. Run through rules engine
-    3. Create alert if rule triggers
-    4. Store event in database
-    """
+async def receive_event(event: EventCreate):
+    # 1. Save event to database
+    # 2. Run through rules engine
+    # 3. If rule triggers, create alert
+    # 4. Return success
 ```
 
 ---
 
-## Implementation Steps
+## The Implementation Plan
 
-### Step 1: Install AI Libraries
-**Duration**: 30 minutes
+### Step 1: Install the AI Libraries (30 minutes)
+
+We need two main libraries:
+- **face_recognition**: The easy-to-use wrapper
+- **dlib**: The heavy-lifting engine (installed automatically with face_recognition)
+- **ultralytics**: YOLOv8 implementation
 
 ```bash
-# In vision/ directory
-pip install face_recognition dlib ultralytics
+# In the vision/ directory
+pip install face_recognition ultralytics
 ```
 
-**Verification**:
+**Test it works**:
 ```python
 import face_recognition
-import cv2
 from ultralytics import YOLO
-print("All libraries loaded successfully")
+print("Libraries loaded successfully!")
 ```
+
+If this fails, you probably have Python version issues. Make sure you're using Python 3.11 (not 3.14).
 
 ---
 
-### Step 2: Build Face Analyzer
-**Duration**: 2-3 hours
+### Step 2: Build the Face Analyzer (3 hours)
 
-**Sub-tasks**:
-1. Create `vision/analyzers/` directory
-2. Implement `face_analyzer.py`:
-   - Load known persons from backend API
-   - Implement detection pipeline
-   - Handle edge cases (no face, multiple faces)
-3. Write unit tests with sample images
-4. Test with live camera feed
+**Create the file**: `vision/analyzers/face_analyzer.py`
 
-**Test Case**:
-```python
-# Test: Detect known person
-known_person = Person(name="John Doe", encoding=[...])
-analyzer = FaceAnalyzer([known_person])
-frame = cv2.imread("test_john.jpg")
-events = analyzer.analyze(frame)
-assert len(events) == 1
-assert events[0].metadata["person_name"] == "John Doe"
-```
+**What to build**:
+1. **Load known persons** from backend API on startup
+2. **Detect faces** in each frame
+3. **Encode faces** into 128-d vectors
+4. **Match faces** against known persons
+5. **Generate events** for matches
 
----
+**Test with**:
+- A photo of yourself
+- Add yourself to the database as "WANTED"
+- Run the analyzer
+- It should return: `{"person_name": "Your Name", "confidence": 0.85}`
 
-### Step 3: Build Object Analyzer
-**Duration**: 2-3 hours
-
-**Sub-tasks**:
-1. Download YOLOv8 model (`yolov8n.pt` - nano version for speed)
-2. Implement `object_analyzer.py`:
-   - Load YOLO model
-   - Filter for relevant classes (person, gun, knife)
-   - Apply confidence threshold
-3. Write unit tests
-4. Test with live camera feed
-
-**Test Case**:
-```python
-# Test: Detect weapon
-analyzer = ObjectAnalyzer(confidence_threshold=0.5)
-frame = cv2.imread("test_gun.jpg")
-events = analyzer.analyze(frame)
-assert any(e.metadata["object_class"] == "gun" for e in events)
-```
+**Edge cases to handle**:
+- No face in frame (return empty list)
+- Multiple faces (process all of them)
+- Unknown face (don't generate event)
 
 ---
 
-### Step 4: Integrate Analyzers into Vision Service
-**Duration**: 2 hours
+### Step 3: Build the Object Analyzer (3 hours)
 
-**File**: `vision/main.py`
+**Create the file**: `vision/analyzers/object_analyzer.py`
 
-**Changes**:
+**What to build**:
+1. **Load YOLOv8 model** (download `yolov8n.pt` - the "nano" version for speed)
+2. **Run detection** on each frame
+3. **Filter results** (only keep person, gun, knife)
+4. **Filter by confidence** (only keep >50%)
+5. **Generate events** for detections
+
+**Test with**:
+- An image of a toy gun or banana (for testing)
+- Run the analyzer
+- It should return: `{"object_class": "gun", "confidence": 0.72}` (or similar)
+
+**Performance tip**: YOLO is fast, but if you're processing 30 FPS, consider only running it on every 2nd or 3rd frame to save CPU.
+
+---
+
+### Step 4: Integrate into Vision Service (2 hours)
+
+**Update**: `vision/main.py`
+
+**What to change**:
 ```python
-from analyzers.face_analyzer import FaceAnalyzer
-from analyzers.object_analyzer import ObjectAnalyzer
+# Old code (just reads frames)
+while True:
+    ret, frame = camera.read()
+    # ... do nothing ...
 
-# Initialize analyzers
-face_analyzer = FaceAnalyzer(load_known_persons())
+# New code (analyzes frames)
+face_analyzer = FaceAnalyzer(known_persons)
 object_analyzer = ObjectAnalyzer()
 
 while True:
@@ -386,25 +338,24 @@ while True:
     object_events = object_analyzer.analyze(frame)
     
     # Send events to backend
-    for event in face_events + object_events:
-        send_event_to_backend(event)
+    all_events = face_events + object_events
+    for event in all_events:
+        send_to_backend(event)  # HTTP POST to /api/v1/events
 ```
+
+**Test**: Run the vision service. You should see events being sent to the backend in the logs.
 
 ---
 
-### Step 5: Build Rules Engine
-**Duration**: 2 hours
+### Step 5: Build the Rules Engine (2 hours)
 
-**File**: `backend/app/services/rules_engine.py`
+**Create the file**: `backend/app/services/rules_engine.py`
 
-**Implementation**:
+**What to build**:
 ```python
 class RulesEngine:
-    def evaluate(self, event: Event, db: AsyncSession) -> Optional[Alert]:
-        """
-        Evaluate event against all rules
-        Return Alert if any rule triggers
-        """
+    async def evaluate(self, event, db):
+        # Rule 1: Wanted person detected
         if event.type == "face_detected":
             person = await get_person_by_name(event.metadata["person_name"], db)
             if person and person.type == "WANTED":
@@ -414,190 +365,180 @@ class RulesEngine:
                     event_id=event.id
                 )
         
+        # Rule 2: Weapon detected
         if event.type == "object_detected":
-            if event.metadata["object_class"] == "gun":
+            if event.metadata["object_class"] in ["gun", "knife"]:
+                severity = "CRITICAL" if event.metadata["object_class"] == "gun" else "WARNING"
                 return Alert(
                     type="WEAPON_DETECTED",
-                    priority="CRITICAL",
+                    priority=severity,
                     event_id=event.id
                 )
         
-        return None
+        return None  # No rule triggered
 ```
+
+**Test**: Send a mock event to the backend. Check if an alert appears in the database.
 
 ---
 
-### Step 6: Create Backend Event Endpoint
-**Duration**: 1 hour
+### Step 6: Create the Event Endpoint (1 hour)
 
-**File**: `backend/app/api/api_v1/endpoints/events.py`
+**Create the file**: `backend/app/api/api_v1/endpoints/events.py`
 
-**Implementation**:
+**What to build**:
 ```python
-@router.post("/", response_model=EventResponse)
-async def create_event(
-    event_in: EventCreate,
-    db: AsyncSession = Depends(get_db)
-):
-    # Store event
+@router.post("/")
+async def create_event(event_in: EventCreate, db: AsyncSession = Depends(get_db)):
+    # Save event
     event = Event(**event_in.dict())
     db.add(event)
     await db.commit()
     
-    # Run rules engine
+    # Check rules
     rules_engine = RulesEngine()
     alert = await rules_engine.evaluate(event, db)
     
+    # Save alert if triggered
     if alert:
         db.add(alert)
         await db.commit()
     
-    return event
+    return {"status": "success", "alert_created": alert is not None}
 ```
 
----
-
-### Step 7: End-to-End Testing
-**Duration**: 2 hours
-
-**Test Scenarios**:
-
-1. **Scenario: Known Person Detection**
-   - Upload photo of yourself as "Person of Interest"
-   - Stand in front of camera
-   - **Expected**: Alert created in database with your name
-
-2. **Scenario: Weapon Detection**
-   - Hold a toy gun or banana (for testing)
-   - Point at camera
-   - **Expected**: Alert created with type "WEAPON_DETECTED"
-
-3. **Scenario: Unknown Person**
-   - Have a friend stand in front of camera
-   - **Expected**: Face detected but no alert (not in database)
-
-4. **Scenario: No Detection**
-   - Empty room
-   - **Expected**: No events, no alerts
+**Test**: Use Postman or curl to POST a fake event. Check the database for the alert.
 
 ---
 
-## Acceptance Criteria
+### Step 7: End-to-End Test (2 hours)
+
+**The ultimate test**: Can the system detect you and create an alert?
+
+**Setup**:
+1. Add your photo to the database as a "WANTED" person
+2. Start the backend
+3. Start the vision service
+4. Stand in front of the camera
+
+**Expected result**:
+- Vision service detects your face
+- Encodes it
+- Matches it to your database entry
+- Sends event to backend
+- Backend creates CRITICAL alert
+- Alert appears in database within 2 seconds
+
+**If it doesn't work**:
+- Check logs for errors
+- Verify your photo is in the database
+- Make sure the camera can see your face clearly
+- Check that the confidence threshold isn't too high
+
+---
+
+## How We Know We're Done
+
+Phase 2 is complete when:
 
 ### Face Recognition
-- [ ] Can detect faces with >95% accuracy in good lighting
-- [ ] Can identify known persons with <10% false positive rate
-- [ ] Processes at least 10 FPS on standard hardware
-- [ ] Handles multiple faces in single frame
-- [ ] Gracefully handles no-face scenarios
+- [ ] Can detect faces in good lighting (>95% accuracy)
+- [ ] Can identify known persons (<10% false positives)
+- [ ] Runs at least 10 FPS
+- [ ] Handles multiple faces in one frame
+- [ ] Doesn't crash when there's no face
 
 ### Object Detection
 - [ ] Detects weapons with >90% accuracy
-- [ ] Confidence threshold prevents excessive false alarms
-- [ ] Processes at least 15 FPS
-- [ ] Correctly filters for target classes (person, gun, knife)
+- [ ] Runs at least 15 FPS
+- [ ] Doesn't spam false alarms (confidence threshold works)
+- [ ] Only detects our target classes (person, gun, knife)
 
 ### Integration
-- [ ] Vision service successfully sends events to backend
+- [ ] Vision service sends events to backend successfully
 - [ ] Backend stores events in database
-- [ ] Rules engine correctly triggers alerts
-- [ ] System runs continuously without crashes for 1 hour
-- [ ] Alerts appear in database within 2 seconds of detection
+- [ ] Rules engine triggers alerts correctly
+- [ ] System runs for 1 hour without crashing
+- [ ] Alert appears in database within 2 seconds of detection
+
+### The Demo Test
+- [ ] Upload your photo as "WANTED"
+- [ ] Stand in front of camera
+- [ ] Alert created in database with your name
+- [ ] Hold a toy weapon
+- [ ] Alert created for weapon detection
 
 ---
 
 ## Performance Targets
 
-| Metric | Target | Measurement Method |
-|--------|--------|-------------------|
-| Face Detection Accuracy | >95% | Test with 100 sample images |
-| Face Recognition Accuracy | >90% | Test with 50 known persons |
-| Object Detection Accuracy | >90% | Test with 100 weapon images |
-| Processing Speed (Face) | >10 FPS | Measure with `time.time()` |
-| Processing Speed (Object) | >15 FPS | Measure with `time.time()` |
-| End-to-End Latency | <2 seconds | Detection → Alert in DB |
-| False Positive Rate | <10% | Manual review of 100 alerts |
+| What | Target | How to Measure |
+|------|--------|----------------|
+| Face detection accuracy | >95% | Test with 100 sample images |
+| Face recognition accuracy | >90% | Test with 50 known persons |
+| Object detection accuracy | >90% | Test with 100 weapon images |
+| Face processing speed | >10 FPS | Use `time.time()` to measure |
+| Object processing speed | >15 FPS | Use `time.time()` to measure |
+| End-to-end latency | <2 seconds | Detection → Alert in DB |
+| False positive rate | <10% | Manual review of 100 alerts |
 
 ---
 
-## Risk Mitigation
+## Potential Problems (And How to Fix Them)
 
-### Risk 1: Poor Detection in Low Light
-**Mitigation**: 
-- Add image preprocessing (histogram equalization, brightness adjustment)
-- Test with IR cameras if available
-- Set minimum confidence threshold
+### Problem 1: "It can't detect faces in low light"
+**Fix**: 
+- Add image preprocessing (brighten the image before detection)
+- Lower the confidence threshold slightly
+- Use better cameras with IR capability
 
-### Risk 2: High False Positive Rate
-**Mitigation**:
-- Tune confidence thresholds based on real-world testing
-- Implement "cooldown" period (don't alert same person every frame)
-- Add manual review workflow for alerts
+### Problem 2: "Too many false alarms"
+**Fix**:
+- Increase confidence threshold (from 0.5 to 0.6 or 0.7)
+- Add a "cooldown" period (don't alert on the same person every frame)
+- Manually review alerts and tune the threshold
 
-### Risk 3: Performance Issues
-**Mitigation**:
-- Use smaller YOLO model (yolov8n instead of yolov8x)
-- Reduce frame processing rate (process every 2nd or 3rd frame)
-- Use GPU acceleration if available
+### Problem 3: "It's too slow"
+**Fix**:
+- Use the smaller YOLO model (`yolov8n` instead of `yolov8x`)
+- Process every 2nd or 3rd frame instead of every frame
+- Use GPU acceleration if available (CUDA)
 
-### Risk 4: Database Connection Failures
-**Mitigation**:
-- Implement event queue with retry logic
-- Cache known persons locally in Vision service
-- Add health check endpoint
-
----
-
-## Dependencies
-
-### External Libraries
-- `face_recognition` (v1.3.0+)
-- `dlib` (v19.24+)
-- `ultralytics` (v8.0+) - YOLOv8
-- `opencv-python` (already installed)
-- `numpy` (already installed)
-
-### Internal Dependencies
-- Phase 1 must be complete (Database, API, Video pipeline)
-- Backend `/api/persons` endpoint must be functional
-- Database must be accessible from Vision service
+### Problem 4: "Vision service can't connect to backend"
+**Fix**:
+- Check that backend is running
+- Verify the URL is correct (`http://localhost:8000`)
+- Add retry logic with exponential backoff
 
 ---
 
-## Timeline Estimate
+## Timeline
 
-| Task | Duration | Dependencies |
-|------|----------|--------------|
-| Install Libraries | 30 min | - |
-| Face Analyzer | 3 hours | Libraries |
-| Object Analyzer | 3 hours | Libraries |
-| Integration | 2 hours | Both Analyzers |
-| Rules Engine | 2 hours | Backend API |
-| Event Endpoint | 1 hour | Rules Engine |
-| Testing | 2 hours | All above |
-| **Total** | **~14 hours** | - |
-
-**Recommended Schedule**: 2-3 working days with breaks
+| Task | Time | Who |
+|------|------|-----|
+| Install libraries | 30 min | Anyone |
+| Face Analyzer | 3 hours | AI team |
+| Object Analyzer | 3 hours | AI team |
+| Integration | 2 hours | AI team |
+| Rules Engine | 2 hours | Backend team |
+| Event Endpoint | 1 hour | Backend team |
+| Testing | 2 hours | Everyone |
+| **Total** | **~14 hours** | **2-3 days** |
 
 ---
 
-## Success Metrics
+## What Comes After This
 
-Phase 2 is considered **COMPLETE** when:
+Once Phase 2 is done, we'll have a working AI surveillance system. But it's still basic.
 
-1. ✅ All acceptance criteria are met
-2. ✅ End-to-end demo works (person detection → alert in database)
-3. ✅ Code is committed to GitHub
-4. ✅ Team can run the system locally
-5. ✅ Documentation is updated with setup instructions
+**Phase 3** will add:
+- **Zone management**: Draw restricted areas on camera feeds
+- **Crowd counting**: Count people in specific zones
+- **Context rules**: "Armed person + no uniform = high alert"
+- **WebSockets**: Real-time alerts to frontend
+
+But first, let's make Phase 2 rock-solid. Get the core AI working, then we'll make it smarter.
 
 ---
 
-## Next Phase Preview
-
-**Phase 3: Advanced Scenario Logic** will build on this foundation:
-- Zone management (draw restricted areas on camera feed)
-- Crowd counting (count people in specific zones)
-- Context rules (armed + no uniform = high alert)
-
-But first, let's make Phase 2 rock-solid! 🚀
+**Let's build this.** 🚀
