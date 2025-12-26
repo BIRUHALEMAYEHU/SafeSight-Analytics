@@ -8,7 +8,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from utils.camera import VideoCamera 
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from fastapi import Depends, HTTPException
+from app.db.session import get_db
+from app.models.camera import Camera as CameraModel
+from fastapi.staticfiles import StaticFiles
+from app.api.api_v1.api import api_router
 import asyncio
+import os
 
 app = FastAPI(
     title="SafeSight Analytics API",
@@ -25,20 +33,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from fastapi.staticfiles import StaticFiles
-import os
+
+
 if not os.path.exists("static"):
     os.makedirs("static")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-from app.api.api_v1.api import api_router
+
 app.include_router(api_router, prefix="/api/v1")
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from fastapi import Depends, HTTPException
-from app.db.session import get_db
-from app.models.camera import Camera as CameraModel
+
 
 # gen_camera = VideoCamera() # Removed global instance
 
@@ -62,6 +66,8 @@ async def gen(camera):
         print(f"Streaming connection ended: {e}")
     finally:
         print("Cleaning up video stream resources...")
+
+
 
 @app.get("/video_feed")
 async def video_feed(
