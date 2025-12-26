@@ -1,65 +1,40 @@
+import httpx
+import asyncio
 import cv2
-import time
-from deepface import DeepFace
-import os
+
 class VideoCamera:
     def __init__(self):
         self.video = cv2.VideoCapture(0)
-        self.known_faces_db = "known_faces" # will be replaced images from the database
-        self.current_name = "Scanning..."
-        self.frame_count = 0
-        self.face_detections = [] 
-        
-    def __del__(self):
-        self.video.release()
+        self.detections = []
+        self.vision_url = "http://localhost:8001/analyze"
+        self.is_processing = False
 
-    def get_frame(self):
+    async def get_frame(self):
         success, frame = self.video.read()
-        if not success:
-            return None
-        
-        if self.frame_count % 10 == 0:
-            try:
-                # 'find' looks through the folder and matches the face
-                results = DeepFace.find(img_path=frame, 
-                                        db_path=self.known_faces_db, 
-                                        model_name='VGG-Face', 
-                                        enforce_detection=False,
-                                        detector_backend='opencv')
-                
-                self.face_detections = []
+        if not success: return None
 
-                for df in results:
-                    if not df.empty:
-                        row = df.iloc[0]
-                        full_path = row['identity']
-                        name = os.path.basename(os.path.dirname(full_path)) # replaced by the name in the database
-                        
-                        self.face_detections.append({
-                            "name": name,
-                            "x": int(row['source_x']),
-                            "y": int(row['source_y']),
-                            "w": int(row['source_w']),
-                            "h": int(row['source_h'])
-                        })
-            except Exception as e:
-                print(f"Matching error: {e}")
-                self.current_name = "No Face"
         
-        frame = cv2.flip(frame, 1)
+        if not self.is_processing:
+            asyncio.create_task(self.send_to_vision_service(frame))
+            
+        for d in self.detections:
+            cv2.rectangle(frame, (d['x'], d['y']), (d['x']+d['w'], d['y']+d['h']), (0, 255, 0), 2)
+            cv2.putText(frame, d['name'], (d['x'], d['y']-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0,255,0), 2)
 
-        for face in self.face_detections:
-            x, y, w, h = face['x'], face['y'], face['w'], face['h']
-            name = face['name']
-
-            # Draw the Bounding Box (Green)
-            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-            cv2.rectangle(frame, (x, y - 35), (x + w, y), (0, 255, 0), cv2.FILLED)
-            cv2.putText(frame, name, (x + 6, y - 6), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-        
-        cv2.putText(frame, f"SafeSight: {time.strftime('%H:%M:%S')}", 
-                    (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-        
         ret, jpeg = cv2.imencode('.jpg', frame)
         return jpeg.tobytes()
+
+    async def send_to_vision_service(self, frame):
+        self.is_processing = True
+        try:
+            _, img_encoded = cv2.imencode('.jpg', frame)
+            async with httpx.AsyncClient() as client:
+                files = {'file': ('frame.jpg', img_encoded.tobytes(), 'image/jpeg')}
+                response = await client.post(self.vision_url, files=files, timeout=None)
+                if response.status_code == 200:
+                    data = response.json()
+                    self.detections = data.get("detections", [])
+        except Exception as e:
+            print(f"Vision Service unreachable: {e}")
+        finally:
+            self.is_processing = False

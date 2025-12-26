@@ -53,3 +53,5 @@ logs/
 # OS
 Thumbs.db
 
+
+known_faces/*

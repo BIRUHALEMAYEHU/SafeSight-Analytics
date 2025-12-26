@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from utils.camera import VideoCamera 
+import asyncio
 
 app = FastAPI(
     title="SafeSight Analytics API",
@@ -26,15 +27,26 @@ app.add_middleware(
 
 gen_camera = VideoCamera()
 
-def gen(camera):
-    while True:
-        frame = camera.get_frame()
-        if frame is None:
-            break
-        
-        # Yield the frame in MJPEG format
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')
+
+
+async def gen(camera):
+    try:
+        while True:
+            # 1. Add a tiny delay to control FPS (e.g., 0.05 = 20 FPS)
+            # This prevents "socket overflow"
+            await asyncio.sleep(0.05) 
+            frame = await camera.get_frame()
+            if frame is None:
+                break
+            
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')
+                   
+    except Exception as e:
+        # This catches "Connection closed by client" or "Broken pipe"
+        print(f"Streaming connection ended: {e}")
+    finally:
+        print("Cleaning up video stream resources...")
 
 @app.get("/video_feed")
 async def video_feed():
