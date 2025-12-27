@@ -8,6 +8,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from utils.camera import VideoCamera 
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from fastapi import Depends, HTTPException
+from app.db.session import get_db
+from app.models.camera import Camera as CameraModel
+from fastapi.staticfiles import StaticFiles
+from app.api.api_v1.api import api_router
+import asyncio
+import os
 
 app = FastAPI(
     title="SafeSight Analytics API",
@@ -24,32 +33,41 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from fastapi.staticfiles import StaticFiles
-import os
+
+
 if not os.path.exists("static"):
     os.makedirs("static")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-from app.api.api_v1.api import api_router
+
 app.include_router(api_router, prefix="/api/v1")
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from fastapi import Depends, HTTPException
-from app.db.session import get_db
-from app.models.camera import Camera as CameraModel
+
 
 # gen_camera = VideoCamera() # Removed global instance
 
-def gen(camera):
-    while True:
-        frame = camera.get_frame()
-        if frame is None:
-            break
-        
-        # Yield the frame in MJPEG format
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')
+
+
+async def gen(camera):
+    try:
+        while True:
+            # 1. Add a tiny delay to control FPS (e.g., 0.05 = 20 FPS)
+            # This prevents "socket overflow"
+            await asyncio.sleep(0.05) 
+            frame = await camera.get_frame()
+            if frame is None:
+                break
+            
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')
+                   
+    except Exception as e:
+        # This catches "Connection closed by client" or "Broken pipe"
+        print(f"Streaming connection ended: {e}")
+    finally:
+        print("Cleaning up video stream resources...")
+
+
 
 @app.get("/video_feed")
 async def video_feed(
