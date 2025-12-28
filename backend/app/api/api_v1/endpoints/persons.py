@@ -4,8 +4,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime
 
+from app.api.dependencies import get_current_active_user, require_role
 from app.db.session import get_db
 from app.models.person import PersonOfInterest as PersonModel
+from app.models.user import User
 from app.schemas import person as person_schema
 
 router = APIRouter()
@@ -14,7 +16,8 @@ router = APIRouter()
 async def read_persons(
     skip: int = 0,
     limit: int = 100,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
 ) -> Any:
     """
     Retrieve persons of interest.
@@ -26,7 +29,8 @@ async def read_persons(
 @router.post("/", response_model=person_schema.Person)
 async def create_person(
     person_in: person_schema.PersonCreate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "operator"))
 ) -> Any:
     """
     Create new person of interest.
@@ -45,7 +49,8 @@ async def create_person(
 @router.get("/{person_id}", response_model=person_schema.Person)
 async def read_person(
     person_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
 ) -> Any:
     """
     Get person by ID.
@@ -60,7 +65,8 @@ async def read_person(
 async def update_person(
     person_id: int,
     person_in: person_schema.PersonUpdate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "operator"))
 ) -> Any:
     """
     Update a person.
@@ -82,7 +88,8 @@ async def update_person(
 @router.delete("/{person_id}", response_model=person_schema.Person)
 async def delete_person(
     person_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin"))
 ) -> Any:
     """
     Delete a person.
@@ -104,7 +111,8 @@ import os
 async def upload_photo(
     person_id: int,
     file: UploadFile = File(...),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "operator"))
 ) -> Any:
     """
     Upload photo for a person.

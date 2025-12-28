@@ -3,8 +3,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
+from app.api.dependencies import get_current_active_user, require_role
 from app.db.session import get_db
 from app.models.camera import Camera as CameraModel
+from app.models.user import User
 from app.schemas import camera as camera_schema
 
 router = APIRouter()
@@ -13,7 +15,8 @@ router = APIRouter()
 async def read_cameras(
     skip: int = 0,
     limit: int = 100,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
 ) -> Any:
     """
     Retrieve cameras.
@@ -25,7 +28,8 @@ async def read_cameras(
 @router.post("/", response_model=camera_schema.Camera)
 async def create_camera(
     camera_in: camera_schema.CameraCreate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "operator"))
 ) -> Any:
     """
     Create new camera.
@@ -50,7 +54,8 @@ async def create_camera(
 @router.get("/{camera_id}", response_model=camera_schema.Camera)
 async def read_camera(
     camera_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
 ) -> Any:
     """
     Get camera by ID.
@@ -65,7 +70,8 @@ async def read_camera(
 async def update_camera(
     camera_id: int,
     camera_in: camera_schema.CameraUpdate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "operator"))
 ) -> Any:
     """
     Update a camera.
@@ -87,7 +93,8 @@ async def update_camera(
 @router.delete("/{camera_id}", response_model=camera_schema.Camera)
 async def delete_camera(
     camera_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin"))
 ) -> Any:
     """
     Delete a camera.
