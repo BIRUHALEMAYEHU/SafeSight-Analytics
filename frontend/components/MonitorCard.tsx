@@ -1,9 +1,20 @@
 /**
+ * Commit: Add AI Analysis feature with backend API integration
+ * 
+ * Enhanced MonitorCard with AI-powered frame analysis capability.
+ * Integrated backend API call for AI analysis (ready for Gemini 3 Flash).
+ * 
+ * Changes:
+ * - Added "Analyze" button with AI integration
+ * - Implemented frame capture and backend API call to /api/v1/analyze
+ * - Added analysis result modal with structured JSON output
+ * - Displays threat level, detected objects, and threat detection results
+ * - Graceful error handling when backend is unavailable
+ * 
  * Phase 2: The Live Feed Component
  * MonitorCard Component
- * 
  * Implements glassmorphism design with MJPEG stream integration.
- * Features: live status indicator, snapshot, recording, and fullscreen capabilities.
+ * Features: live status indicator, snapshot, recording, fullscreen, and AI analysis.
  */
 "use client";
 
@@ -30,6 +41,9 @@ export default function MonitorCard({
   const [showControls, setShowControls] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [showAnalysisModal, setShowAnalysisModal] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLImageElement>(null);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -140,6 +154,56 @@ export default function MonitorCard({
       showToast("Recording started");
     } else {
       showToast(`Recording stopped - ${formatTime(recordingTime)}`);
+    }
+  };
+
+  const handleAnalyze = async () => {
+    if (!videoRef.current || streamError) {
+      showToast("Camera offline - cannot analyze", "error");
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setShowAnalysisModal(true);
+
+    try {
+      // Capture current frame
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      if (ctx && videoRef.current) {
+        canvas.width = videoRef.current.naturalWidth || 640;
+        canvas.height = videoRef.current.naturalHeight || 480;
+        ctx.drawImage(videoRef.current, 0, 0);
+
+        // Convert to base64
+        const imageData = canvas.toDataURL("image/jpeg", 0.8);
+
+        // Call backend API for AI analysis
+        const response = await fetch("http://localhost:5000/api/v1/analyze", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            camera_id: cameraId,
+            image: imageData,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Analysis request failed");
+        }
+
+        const analysisResult = await response.json();
+        setAnalysisResult(analysisResult);
+        showToast("Analysis complete", "success");
+      }
+    } catch (error) {
+      console.error("Analysis error:", error);
+      showToast("Analysis failed - check backend connection", "error");
+      setAnalysisResult(null);
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -301,6 +365,26 @@ export default function MonitorCard({
               {isRecording ? `REC ${formatTime(recordingTime)}` : "Record"}
             </span>
           </button>
+
+          {/* AI Analyze Button */}
+          <button
+            onClick={handleAnalyze}
+            disabled={isAnalyzing || streamError}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600/80 hover:bg-indigo-700/90 text-white border border-indigo-500/50 transition-colors font-mono text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="Analyze with AI"
+          >
+            {isAnalyzing ? (
+              <>
+                <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <span>Analyzing...</span>
+              </>
+            ) : (
+              <>
+                <span>🤖</span>
+                <span>Analyze</span>
+              </>
+            )}
+          </button>
         </div>
 
         {/* Timestamp (bottom right) */}
@@ -321,6 +405,122 @@ export default function MonitorCard({
           }`}
         >
           {toast.message}
+        </div>
+      )}
+
+      {/* AI Analysis Modal */}
+      {showAnalysisModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={() => setShowAnalysisModal(false)}
+        >
+          <div
+            className="relative w-full max-w-2xl rounded-2xl border border-indigo-500/30 bg-slate-900/95 p-6 shadow-2xl backdrop-blur-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="font-mono text-lg font-bold text-indigo-400">
+                AI Analysis Results
+              </h3>
+              <button
+                onClick={() => setShowAnalysisModal(false)}
+                className="text-slate-400 hover:text-slate-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            {isAnalyzing ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <div className="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent"></div>
+                  <p className="font-mono text-sm text-slate-400">
+                    Analyzing frame with Gemini 3 Flash...
+                  </p>
+                </div>
+              </div>
+            ) : analysisResult ? (
+              <div className="space-y-4 font-mono text-sm">
+                {/* Threat Level */}
+                <div
+                  className={`rounded-lg border p-4 ${
+                    analysisResult.threatLevel === "critical"
+                      ? "border-red-500/50 bg-red-500/10 text-red-400"
+                      : analysisResult.threatLevel === "high"
+                      ? "border-orange-500/50 bg-orange-500/10 text-orange-400"
+                      : analysisResult.threatLevel === "medium"
+                      ? "border-yellow-500/50 bg-yellow-500/10 text-yellow-400"
+                      : "border-slate-700/50 bg-slate-800/30 text-slate-400"
+                  }`}
+                >
+                  <div className="mb-2 font-semibold uppercase">
+                    Threat Level: {analysisResult.threatLevel}
+                  </div>
+                  <div className="text-xs">{analysisResult.summary}</div>
+                </div>
+
+                {/* Detected Objects */}
+                <div className="rounded-lg border border-slate-700/50 bg-slate-800/30 p-4">
+                  <h4 className="mb-3 font-semibold text-cyan-400">
+                    Detected Objects
+                  </h4>
+                  <div className="space-y-2">
+                    {analysisResult.objects.map((obj: any, idx: number) => (
+                      <div
+                        key={idx}
+                        className="flex justify-between text-xs text-slate-300"
+                      >
+                        <span>{obj.type} (x{obj.count})</span>
+                        <span className="text-slate-500">
+                          {(obj.confidence * 100).toFixed(0)}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Threat Detection */}
+                <div className="rounded-lg border border-slate-700/50 bg-slate-800/30 p-4">
+                  <h4 className="mb-3 font-semibold text-cyan-400">
+                    Threat Detection
+                  </h4>
+                  <div className="space-y-2">
+                    {analysisResult.threats.map((threat: any, idx: number) => (
+                      <div
+                        key={idx}
+                        className={`rounded border p-2 text-xs ${
+                          threat.detected
+                            ? "border-yellow-500/50 bg-yellow-500/10 text-yellow-400"
+                            : "border-slate-700/30 bg-slate-900/30 text-slate-500"
+                        }`}
+                      >
+                        <div className="flex justify-between">
+                          <span>{threat.type}</span>
+                          <span>
+                            {threat.detected ? "DETECTED" : "Clear"} (
+                            {(threat.confidence * 100).toFixed(0)}%)
+                          </span>
+                        </div>
+                        {threat.description && (
+                          <div className="mt-1 text-xs">{threat.description}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* JSON Output */}
+                <details className="rounded-lg border border-slate-700/50 bg-slate-950/50 p-4">
+                  <summary className="cursor-pointer font-semibold text-indigo-400">
+                    Raw JSON Analysis
+                  </summary>
+                  <pre className="mt-3 overflow-auto text-xs text-slate-400">
+                    {JSON.stringify(analysisResult, null, 2)}
+                  </pre>
+                </details>
+              </div>
+            ) : null}
+          </div>
         </div>
       )}
     </>

@@ -1,49 +1,49 @@
 /**
- * Phase 1: Authentication & Protected Routes - Task 1.2
- * The Login Page UI
+ * Commit: Implement credential validation with simple auth
  * 
+ * Restored credential validation using login() function.
+ * Only redirects to dashboard if username and password match.
+ * 
+ * Changes:
+ * - Uses login() function from lib/auth.ts for validation
+ * - Validates credentials before redirecting
+ * - Shows error message if credentials don't match
+ * - Only redirects to dashboard on successful authentication
+ * 
+ * Login Page UI
  * Security-themed login form with dark aesthetics.
- * Handles authentication via NextAuth credentials provider.
+ * Uses simple client-side authentication with credential validation.
  */
 "use client";
 
 import { FormEvent, useState } from "react";
-import { signIn } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { login } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
-
   const [formState, setFormState] = useState({ username: "", password: "" });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
     setSubmitting(true);
 
-    const response = await signIn("credentials", {
-      redirect: false,
-      username: formState.username,
-      password: formState.password,
-      callbackUrl,
-    });
+    // Validate credentials using login function
+    const success = login(formState.username, formState.password);
 
     setSubmitting(false);
 
-    if (response?.error) {
+    if (!success) {
       setError("Invalid username or password.");
       return;
     }
 
-    if (response?.ok) {
-      // Redirect to dashboard on successful login
-      router.push("/dashboard");
-      router.refresh();
-    }
+    // Redirect to dashboard only on successful login
+    router.push("/dashboard");
+    router.refresh();
   };
 
   return (
@@ -131,7 +131,7 @@ export default function LoginPage() {
         </form>
 
         <p className="text-center text-xs text-slate-500 font-mono">
-          Protected access • Sessions secured by NextAuth
+          Protected access • Client-side authentication
         </p>
       </div>
     </div>

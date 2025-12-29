@@ -1,9 +1,16 @@
 /**
- * Phase 1: Authentication & Protected Routes - Task 1.4
- * Root Layout with Auth Provider
+ * Commit: Update layout to use custom AuthProvider instead of NextAuth
  * 
- * Wraps entire app with AuthProvider to enable session access.
- * All dashboard components can now use useSession() hook.
+ * Updated root layout to use custom AuthProvider wrapper.
+ * Enables useAuth() hook throughout the application.
+ * 
+ * Changes:
+ * - Updated comment to reflect useAuth() instead of useSession()
+ * - AuthProvider now wraps app with custom AuthContext
+ * 
+ * Root Layout with Auth Provider
+ * Wraps entire app with AuthProvider to enable authentication access.
+ * All dashboard components can now use useAuth() hook.
  */
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";

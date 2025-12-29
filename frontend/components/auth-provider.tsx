@@ -1,22 +1,28 @@
 /**
- * Phase 1: Authentication & Protected Routes - Task 1.4
- * Auth Provider Wrapper
+ * Commit: Replace NextAuth SessionProvider with custom AuthProvider
  * 
- * Client component wrapper for NextAuth SessionProvider.
- * Provides session context to all dashboard components.
- * Wraps children in layout.tsx to enable useSession() hook.
+ * Updated to use custom AuthContext instead of NextAuth SessionProvider.
+ * Enables useAuth() hook throughout the application.
+ * 
+ * Changes:
+ * - Removed NextAuth SessionProvider import
+ * - Now uses AuthContext from contexts/AuthContext.tsx
+ * - Simplified props (removed session prop)
+ * 
+ * Auth Provider Wrapper
+ * Client component wrapper for AuthContext.
+ * Provides authentication state to all dashboard components.
+ * Wraps children in layout.tsx to enable useAuth() hook.
  */
 "use client";
 
-import { SessionProvider } from "next-auth/react";
+import { AuthProvider as AuthContextProvider } from "@/contexts/AuthContext";
 import type { ReactNode } from "react";
-import type { Session } from "next-auth";
 
 type AuthProviderProps = {
   children: ReactNode;
-  session?: Session | null;
 };
 
-export default function AuthProvider({ children, session }: AuthProviderProps) {
-  return <SessionProvider session={session}>{children}</SessionProvider>;
+export default function AuthProvider({ children }: AuthProviderProps) {
+  return <AuthContextProvider>{children}</AuthContextProvider>;
 }
