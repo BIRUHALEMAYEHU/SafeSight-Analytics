@@ -49,13 +49,15 @@ SafeSight Analytics is a comprehensive video surveillance system with face recog
 
 ### Authentication
 ```
-POST   /api/v1/auth/register              # Create new user
+POST   /api/v1/auth/users                # Create user (admin only)
 POST   /api/v1/auth/login                # Login (returns access + refresh token)
 GET    /api/v1/auth/me                   # Get current user
 POST   /api/v1/auth/refresh              # Refresh access token
 POST   /api/v1/auth/password-reset/request   # Request password reset
 POST   /api/v1/auth/password-reset/confirm   # Confirm password reset
 ```
+
+> **Security Note**: User creation is restricted to admins only. This system is designed for private, controlled deployments where user accounts are managed centrally rather than allowing self-registration.
 
 ### Cameras (Protected)
 ```
@@ -116,21 +118,25 @@ DATABASE_URL=postgresql+asyncpg://safesight:changeme@database:5432/safesight
 
 ### Quick Start Example
 ```bash
-# 1. Register a user
-curl -X POST "http://localhost:8000/api/v1/auth/register" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "admin",
-    "email": "admin@example.com",
-    "password": "securepass123",
-    "role": "admin"
-  }'
+# Note: The first admin user must be created directly in the database or via a setup script
+# For testing, you can use the database seeding script or create via SQL
 
-# 2. Login to get tokens
+# 1. Login with your admin credentials
 curl -X POST "http://localhost:8000/api/v1/auth/login" \
-  -d "username=admin&password=securepass123"
+  -d "username=admin&password=yourpassword"
 
 # Response: {"access_token": "...", "refresh_token": "...", "token_type": "bearer"}
+
+# 2. Create a new user (admin only)
+curl -X POST "http://localhost:8000/api/v1/auth/users" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "operator1",
+    "email": "operator@example.com",
+    "password": "securepass123",
+    "role": "operator"
+  }'
 
 # 3. Use token to access protected endpoints
 curl -X GET "http://localhost:8000/api/v1/cameras/" \

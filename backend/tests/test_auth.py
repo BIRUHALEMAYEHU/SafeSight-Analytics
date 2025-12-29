@@ -7,10 +7,30 @@ from app.models.user import User as UserModel
 
 
 @pytest.mark.asyncio
-async def test_register_user(async_client: AsyncClient):
-    """Test user registration"""
+async def test_create_user_as_admin(async_client: AsyncClient, db_session: AsyncSession):
+    """Test user creation by admin"""
+    # Create admin user
+    admin = UserModel(
+        username="admin",
+        email="admin@example.com",
+        hashed_password=get_password_hash("adminpass"),
+        role="admin",
+        is_active=True
+    )
+    db_session.add(admin)
+    await db_session.commit()
+    
+    # Login as admin
+    login_response = await async_client.post(
+        "/api/v1/auth/login",
+        data={"username": "admin", "password": "adminpass"}
+    )
+    token = login_response.json()["access_token"]
+    
+    # Create new user
     response = await async_client.post(
-        "/api/v1/auth/register",
+        "/api/v1/auth/users",
+        headers={"Authorization": f"Bearer {token}"},
         json={
             "username": "testuser",
             "email": "test@example.com",
@@ -26,10 +46,19 @@ async def test_register_user(async_client: AsyncClient):
     assert "id" in data
     assert "hashed_password" not in data  # Should not expose password
 
-
 @pytest.mark.asyncio
-async def test_register_duplicate_username(async_client: AsyncClient, db_session: AsyncSession):
-    """Test registration with duplicate username"""
+async def test_create_user_duplicate_username(async_client: AsyncClient, db_session: AsyncSession):
+    """Test user creation with duplicate username"""
+    # Create admin
+    admin = UserModel(
+        username="admin",
+        email="admin@example.com",
+        hashed_password=get_password_hash("adminpass"),
+        role="admin",
+        is_active=True
+    )
+    db_session.add(admin)
+    
     # Create existing user
     user = UserModel(
         username="existing",
@@ -40,9 +69,17 @@ async def test_register_duplicate_username(async_client: AsyncClient, db_session
     db_session.add(user)
     await db_session.commit()
     
-    # Try to register with same username
+    # Login as admin
+    login_response = await async_client.post(
+        "/api/v1/auth/login",
+        data={"username": "admin", "password": "adminpass"}
+    )
+    token = login_response.json()["access_token"]
+    
+    # Try to create with same username
     response = await async_client.post(
-        "/api/v1/auth/register",
+        "/api/v1/auth/users",
+        headers={"Authorization": f"Bearer {token}"},
         json={
             "username": "existing",
             "email": "different@example.com",

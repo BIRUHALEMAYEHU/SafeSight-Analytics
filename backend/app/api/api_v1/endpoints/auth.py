@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from app.api.dependencies import get_current_active_user
+from app.api.dependencies import get_current_active_user, require_role
 from app.core.config import settings
 from app.core.security import (
     create_access_token, create_refresh_token, 
@@ -20,13 +20,15 @@ from app.schemas import user as user_schema
 router = APIRouter()
 
 
-@router.post("/register", response_model=user_schema.User)
-async def register(
+@router.post("/users", response_model=user_schema.User)
+async def create_user(
     user_in: auth_schema.UserRegister,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(require_role("admin"))
 ) -> Any:
     """
-    Register a new user.
+    Create a new user. Admin only.
+    This endpoint is restricted to admins for security in private deployments.
     """
     # Check if username already exists
     result = await db.execute(select(UserModel).where(UserModel.username == user_in.username))
