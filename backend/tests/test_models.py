@@ -108,6 +108,8 @@ class TestPersonOfInterestModel:
         assert saved_person.name == "John Doe"
         assert saved_person.type == "wanted"
         assert len(saved_person.face_encoding) == 128
+        assert saved_person.photo_checksum is None
+        assert saved_person.photo_mime is None
 
 
 class TestEventModel:
