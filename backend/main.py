@@ -65,6 +65,7 @@ async def gen(camera):
         # This catches "Connection closed by client" or "Broken pipe"
         print(f"Streaming connection ended: {e}")
     finally:
+        camera.stop()
         print("Cleaning up video stream resources...")
 
 
