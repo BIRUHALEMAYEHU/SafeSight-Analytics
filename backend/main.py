@@ -14,7 +14,7 @@ from fastapi import Depends, HTTPException
 from app.db.session import get_db
 from app.models.camera import Camera as CameraModel
 from fastapi.staticfiles import StaticFiles
-from app.api.api_v1.api import api_router
+#from app.api.api_v1.api import api_router
 import asyncio
 import os
 
@@ -40,7 +40,7 @@ if not os.path.exists("static"):
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
-app.include_router(api_router, prefix="/api/v1")
+#app.include_router(api_router, prefix="/api/v1")
 
 
 
@@ -65,6 +65,7 @@ async def gen(camera):
         # This catches "Connection closed by client" or "Broken pipe"
         print(f"Streaming connection ended: {e}")
     finally:
+        camera.stop()
         print("Cleaning up video stream resources...")
 
 
