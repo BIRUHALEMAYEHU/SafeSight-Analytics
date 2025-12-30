@@ -1,26 +1,64 @@
+/**
+ * Commit: Add JetBrains Mono font and scanning animation, fix import order
+ * 
+ * Added JetBrains Mono font for technical aesthetic.
+ * Fixed CSS import order (Google Fonts must come before Tailwind).
+ * Added scanning line animation for Hero Feed overlay.
+ * 
+ * Changes:
+ * - Added JetBrains Mono font import from Google Fonts
+ * - Moved font import before Tailwind import (CSS requirement)
+ * - Added @keyframes scan animation for Hero Feed
+ * - Added .animate-scan utility class
+ * - Updated font-mono variable to use JetBrains Mono
+ * 
+ * SafeSight Analytics - Global Styling
+ * Global CSS with Tailwind imports and theme variables.
+ * Supports dark mode via prefers-color-scheme media query.
+ * Font variables configured for sans and mono fonts (JetBrains Mono).
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
-
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+    --background: #ffffff;
+    --foreground: #171717;
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --font-sans: var(--font-geist-sans);
+    --font-mono: 'JetBrains Mono', 'Courier New', monospace;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+     :root {
+        --background: #0a0a0a;
+        --foreground: #ededed;
+    }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+
+/* Scanning Line Animation for Hero Feed */
+
+@keyframes scan {
+    0% {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+}
+
+.animate-scan {
+    animation: scan 3s linear infinite;
 }
