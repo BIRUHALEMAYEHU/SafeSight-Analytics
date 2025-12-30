@@ -241,6 +241,25 @@ docker compose exec backend pytest tests/test_models.py -v
 - Complete Rules Engine implementation
 - Real-time event ingestion from Vision service
 - WebSocket alerts
+
+## Updates (Phase 2 work in progress)
+- Added a local storage abstraction for uploads that saves files under `static/` and records metadata (mime, size, checksum, uploaded_at) for persons of interest.
+- Person records now store photo metadata alongside `photo_path`, enabling easy swap to S3/MinIO later.
+- Photo upload endpoint now uses the storage layer instead of manual file writes.
+
+## Running Tests
+
+### Via Docker (recommended for parity)
+```bash
+cd deploy
+docker compose run --rm backend pytest
+```
+
+### Local (if dependencies installed)
+```bash
+source ../.venv/bin/activate  # or your env
+python -m pytest tests
+```
 - Email notifications for password resets
 - Token revocation/blacklist
 

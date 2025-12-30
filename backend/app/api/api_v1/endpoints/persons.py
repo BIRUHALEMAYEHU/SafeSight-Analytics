@@ -9,8 +9,10 @@ from app.db.session import get_db
 from app.models.person import PersonOfInterest as PersonModel
 from app.models.user import User
 from app.schemas import person as person_schema
+from app.services.storage import LocalStorage
 
 router = APIRouter()
+storage = LocalStorage(base_path="static", public_prefix="/static")
 
 @router.get("/", response_model=List[person_schema.Person])
 async def read_persons(
@@ -104,7 +106,6 @@ async def delete_person(
     return person
 
 from fastapi import UploadFile, File
-import shutil
 import os
 
 @router.post("/{person_id}/photo", response_model=person_schema.Person)
@@ -122,20 +123,16 @@ async def upload_photo(
     if not person:
         raise HTTPException(status_code=404, detail="Person not found")
     
-    # Create directory if not exists
-    upload_dir = "static/photos"
-    os.makedirs(upload_dir, exist_ok=True)
-    
-    # Save file
-    file_extension = os.path.splitext(file.filename)[1]
+    file_extension = os.path.splitext(file.filename)[1] if file.filename else ""
     file_name = f"person_{person_id}{file_extension}"
-    file_path = f"{upload_dir}/{file_name}"
-    
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-        
-    # Update person record
-    person.photo_path = f"/static/photos/{file_name}"
+
+    stored = await storage.save_upload(file=file, subdir="photos", filename=file_name)
+
+    person.photo_path = stored.public_path
+    person.photo_mime = stored.mime_type
+    person.photo_size = stored.size
+    person.photo_checksum = stored.checksum
+    person.photo_uploaded_at = stored.uploaded_at
     db.add(person)
     await db.commit()
     await db.refresh(person)
