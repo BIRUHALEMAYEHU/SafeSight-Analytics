@@ -18,7 +18,6 @@ PORT = int(os.getenv("VISION_PORT", "8001"))
 # Global analyzer instance
 face_analyzer = None
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -93,6 +92,8 @@ async def reload_persons():
         "count": len(face_analyzer.known_persons)
     }
 
+# Set DeepFace home to local directory for portability
+os.environ["DEEPFACE_HOME"] = './model'
 
 @app.post("/analyze")
 async def analyze_frame(file: UploadFile = File(...)):
@@ -107,11 +108,12 @@ async def analyze_frame(file: UploadFile = File(...)):
             "status": "success",
             "detections": [
                 {
-                    "type": "face_detected",
-                    "person_name": str,
-                    "person_type": str,
+                    "name": str,
+                    "type": str,
                     "confidence": float,
-                    "bbox": [x, y, w, h]
+                    "x": int,
+                    "y": int,
+                    "distance": float (optional)
                 }
             ]
         }
@@ -224,4 +226,4 @@ if __name__ == "__main__":
         host=HOST,
         port=PORT,
         log_level="info"
-    ) 
+    )

@@ -21,6 +21,10 @@ class PersonUpdate(PersonBase):
 class Person(PersonBase):
     id: int
     photo_path: Optional[str] = None
+    photo_mime: Optional[str] = None
+    photo_size: Optional[int] = None
+    photo_checksum: Optional[str] = None
+    photo_uploaded_at: Optional[datetime] = None
     face_encoding: Optional[List[float]] = None
     created_at: str 
 
