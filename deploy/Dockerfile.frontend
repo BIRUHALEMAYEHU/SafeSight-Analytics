@@ -1,4 +1,4 @@
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
@@ -15,5 +15,4 @@ COPY . .
 EXPOSE 5173
 
 # Run development server
-CMD ["npm", "run", "dev", "--", "--host"]
-
+CMD ["npm", "run", "dev"]
