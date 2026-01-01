@@ -1,2 +1,35 @@
+# Virtual environments
 .venv/*
-model/*
+venv/
+env/
+
+# Known faces cache (downloaded from database)
+known_faces/
+
+# DeepFace model cache
+.deepface/
+model/
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
