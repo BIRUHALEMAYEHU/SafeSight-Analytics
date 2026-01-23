@@ -26,24 +26,21 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
     setSubmitting(true);
 
-    // Validate credentials using login function
-    const success = login(formState.username, formState.password);
-
-    setSubmitting(false);
-
-    if (!success) {
-      setError("Invalid username or password.");
-      return;
+    try {
+      await login(formState.username, formState.password);
+      router.push("/dashboard");
+      router.refresh();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unable to sign in.";
+      setError(message);
+    } finally {
+      setSubmitting(false);
     }
-
-    // Redirect to dashboard only on successful login
-    router.push("/dashboard");
-    router.refresh();
   };
 
   return (
