@@ -18,7 +18,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { getCurrentUser, logout as logoutUser, type User } from "@/lib/auth";
+import { ensureSession, logout as logoutUser, type User } from "@/lib/auth";
 
 interface AuthContextType {
   user: User | null;
@@ -39,23 +39,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    // Check authentication on mount
-    const currentUser = getCurrentUser();
-    setUser(currentUser);
-    setStatus(currentUser ? "authenticated" : "unauthenticated");
+    let active = true;
 
-    // Listen for storage changes (logout from other tabs)
-    const handleStorageChange = () => {
-      const updatedUser = getCurrentUser();
-      setUser(updatedUser);
-      setStatus(updatedUser ? "authenticated" : "unauthenticated");
-      if (!updatedUser && pathname?.startsWith("/dashboard")) {
+    const syncSession = async () => {
+      setStatus("loading");
+      const currentUser = await ensureSession();
+      if (!active) return;
+
+      setUser(currentUser);
+      setStatus(currentUser ? "authenticated" : "unauthenticated");
+
+      if (!currentUser && pathname?.startsWith("/dashboard")) {
         router.push("/login");
       }
     };
 
+    syncSession();
+
+    const handleStorageChange = () => {
+      syncSession();
+    };
+
     window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
+    return () => {
+      active = false;
+      window.removeEventListener("storage", handleStorageChange);
+    };
   }, [pathname, router]);
 
   const logout = () => {
