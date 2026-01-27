@@ -1,7 +1,7 @@
 # SafeSight Analytics - Backend
 
 ## Overview
-SafeSight Analytics is a comprehensive video surveillance system with face recognition, zone monitoring, and real-time alerting capabilities.
+SafeSight Analytics is a comprehensive video surveillance platform featuring integrated facial recognition, zone monitoring, and real-time alerting capabilities. This intelligent system leverages advanced computer vision and deep learning through Convolutional Neural Network (CNN) architectures, seamlessly implemented using the OpenCV library for Python to ensure robust, high-performance monitoring.
 
 ## Current Status
 
