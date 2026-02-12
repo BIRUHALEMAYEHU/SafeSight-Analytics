@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from utils.camera import VideoCamera 
+# from utils.camera import VideoCamera  # DISABLED for cloud deployment - vision service handles video processing 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi import Depends, HTTPException
@@ -48,6 +48,12 @@ app.include_router(api_router, prefix="/api/v1")
 
 
 
+
+# VIDEO STREAMING DISABLED FOR CLOUD DEPLOYMENT
+# In cloud deployment, video processing is handled by the vision service
+# The backend only manages camera metadata and configurations
+
+"""
 async def gen(camera):
     try:
         while True:
@@ -75,10 +81,10 @@ async def video_feed(
     camera_id: int = None,
     db: AsyncSession = Depends(get_db)
 ):
-    """
+    \"\"\"
     Stream video from a specific camera.
     If camera_id is not provided, defaults to local webcam (0).
-    """
+    \"\"\"
     source = 0 # Default to local webcam
     
     if camera_id:
@@ -98,6 +104,8 @@ async def video_feed(
     camera = VideoCamera(source=source)
     
     return StreamingResponse(gen(camera), media_type="multipart/x-mixed-replace; boundary=frame")
+"""
+
 
 @app.get("/")
 async def root():
