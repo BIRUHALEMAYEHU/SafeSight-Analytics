@@ -3,7 +3,7 @@ import asyncio
 import cv2
 import time
 import os
-from ultralytics import YOLO # Import the lightweight detection library
+# from ultralytics import YOLO # Import the lightweight detection library - TEMPORARILY DISABLED
 
 class VideoCamera:
     def __init__(self, source=0):
@@ -13,9 +13,10 @@ class VideoCamera:
         self.face_detections = [] 
         self.is_processing = False
         
-        print("Loading Object Detection Model...")
-        self.model = YOLO('yolov8n.pt') 
-        self.target_classes = [0, 2, 3, 5, 7]
+        # YOLO TEMPORARILY DISABLED - Uncomment when PyTorch DLL issue is resolved
+        # print("Loading Object Detection Model...")
+        # self.model = YOLO('yolov8n.pt') 
+        # self.target_classes = [0, 2, 3, 5, 7]
 
     def stop(self):
         """Properly release the camera"""
@@ -31,25 +32,24 @@ class VideoCamera:
         # Flip frame (optional, depending on camera position)
         frame = cv2.flip(frame, 1)
 
-        # --- GENERAL OBJECT DETECTION (Person/Car) ---
-      
-        results = self.model(frame, classes=self.target_classes, conf=0.4, verbose=False)
-        
-        if not self.face_detections:
-            for result in results:
-                for box in result.boxes:
-                    x1, y1, x2, y2 = map(int, box.xyxy[0])
-                    cls = int(box.cls[0])
-                    
-                    color = (112, 128, 144) 
-                    
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-                    
-                    label = self.model.names[cls] # e.g., 'person', 'car'
-                    (w, h), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
-                    cv2.rectangle(frame, (x1, y1 - 20), (x1 + w, y1), color, -1)
-                    cv2.putText(frame, label.upper(), (x1, y1 - 5), 
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        # --- GENERAL OBJECT DETECTION (Person/Car) --- TEMPORARILY DISABLED
+        # results = self.model(frame, classes=self.target_classes, conf=0.4, verbose=False)
+        # 
+        # if not self.face_detections:
+        #     for result in results:
+        #         for box in result.boxes:
+        #             x1, y1, x2, y2 = map(int, box.xyxy[0])
+        #             cls = int(box.cls[0])
+        #             
+        #             color = (112, 128, 144) 
+        #             
+        #             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+        #             
+        #             label = self.model.names[cls] # e.g., 'person', 'car'
+        #             (w, h), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+        #             cv2.rectangle(frame, (x1, y1 - 20), (x1 + w, y1), color, -1)
+        #             cv2.putText(frame, label.upper(), (x1, y1 - 5), 
+        #                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
         
         if self.frame_count % 10 == 0 and not self.is_processing:

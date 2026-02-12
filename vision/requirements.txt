@@ -1,11 +1,28 @@
-opencv-python==4.8.1.78
+# Core dependencies
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+httpx==0.25.1
+python-dotenv==1.0.0
+
+# Computer Vision & AI
+opencv-python-headless==4.8.1.78
 numpy<2.0
-face_recognition
-dlib-bin
-deepface
-fastapi
-uvicorn[standard]
-python-multipart
-httpx
-ultralytics
-tf-keras
+
+# Face Recognition
+face_recognition==1.3.0
+dlib-bin==19.24.2
+deepface==0.0.79
+
+# Object Detection (YOLO)
+ultralytics==8.0.196
+torch==2.1.0
+torchvision==0.16.0
+
+# Deep Learning Backend
+tensorflow==2.15.0
+tf-keras==2.15.0
+
+# Additional utilities
+Pillow==10.1.0
+scipy==1.11.4

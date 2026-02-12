@@ -1,0 +1,66 @@
+services:
+  # PostgreSQL Database
+  - type: pserv
+    name: safesight-db
+    env: docker
+    plan: free
+    databases:
+      - name: safesight
+        user: safesight
+
+  # Backend Service
+  - type: web
+    name: safesight-backend
+    env: docker
+    dockerfilePath: ./deploy/Dockerfile.backend
+    dockerContext: ./backend
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: safesight-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+        length: 32
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: 30
+      - key: REFRESH_TOKEN_EXPIRE_DAYS
+        value: 7
+      - key: PASSWORD_RESET_TOKEN_EXPIRE_MINUTES
+        value: 60
+    healthCheckPath: /health
+
+  # Vision Service
+  - type: web
+    name: safesight-vision
+    env: docker
+    dockerfilePath: ./deploy/Dockerfile.vision
+    dockerContext: ./vision
+    plan: free
+    envVars:
+      - key: BACKEND_URL
+        fromService:
+          type: web
+          name: safesight-backend
+          property: host
+    healthCheckPath: /health
+
+  # Frontend Service
+  - type: web
+    name: safesight-frontend
+    env: docker
+    dockerfilePath: ./deploy/Dockerfile.frontend
+    dockerContext: ./frontend
+    plan: free
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: safesight-backend
+          property: host
+      - key: NEXTAUTH_URL
+        value: https://safesight-frontend.onrender.com
+      - key: NEXTAUTH_SECRET
+        generateValue: true
+        length: 32

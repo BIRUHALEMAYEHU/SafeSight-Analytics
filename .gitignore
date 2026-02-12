@@ -6,6 +6,9 @@ __pycache__/
 .Python
 env/
 venv/
+venv311/
+venv_new/
+venv_db/
 ENV/
 build/
 develop-eggs/
@@ -29,6 +32,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log
+.next/
+out/
 
 # IDEs
 .vscode/
@@ -42,6 +47,7 @@ yarn-error.log*
 .env
 .env.local
 .env.*.local
+*.env
 
 # Logs
 *.log
@@ -53,6 +59,48 @@ logs/
 # OS
 Thumbs.db
 
-
+# AI Models & Data
 known_faces/*
-known_faces
+known_faces/
+*.pt
+*.pth
+*.h5
+*.pb
+*.onnx
+models/
+weights/
+
+# Uploaded files & static content
+backend/static/uploads/*
+backend/static/persons/*
+!backend/static/.gitkeep
+vision/known_faces/*
+!vision/known_faces/.gitkeep
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Deployment
+.railway/
+.render/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Deployment documentation
+DEPLOYMENT_*.md
+FIX_BUILD_TIMEOUT.md
+LOCAL_SETUP_GUIDE.md
+QUICK_HELP.md
+
+# Internal documentation
+docs/current_progress_analysis.md
+docs/NEXT_STEPS_CHECKLIST.md
+docs/PR_REVIEW_COMMENTS.md
+docs/teammate_changes_analysis.md
+docs/vision_refactoring_summary.md
+docs/phase2_execution_checklist.md

@@ -20,6 +20,8 @@ This repository contains the full system: a FastAPI backend, a Next.js frontend,
 - [Roadmap](#roadmap)
 - [License](#license)
 
+> **📹 Recording a Demo Video?** Check out [LOCAL_SETUP_GUIDE.md](LOCAL_SETUP_GUIDE.md) for a complete step-by-step guide to run the system locally and verify everything works!
+
 ## What SafeSight Analytics Does
 
 SafeSight Analytics continuously analyzes live video streams and turns visual events into actionable security intelligence. The system is designed for multi-camera environments where human operators can’t reliably monitor every feed simultaneously.
