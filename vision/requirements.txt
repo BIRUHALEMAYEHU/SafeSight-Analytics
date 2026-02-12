@@ -16,11 +16,8 @@ deepface==0.0.79
 
 # Object Detection (YOLO)
 ultralytics==8.0.196
-torch==2.1.0
-torchvision==0.16.0
 
 # Deep Learning Backend
-tensorflow==2.15.0
 tf-keras==2.15.0
 
 # Additional utilities

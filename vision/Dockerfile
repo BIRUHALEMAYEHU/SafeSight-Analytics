@@ -17,10 +17,24 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Copy requirements first for better caching
-COPY requirements.txt .
+# ============================================================
+# STAGE 1: Install PyTorch CPU-only (much smaller than GPU version)
+# Same models, same accuracy - free tier has no GPU anyway
+# ============================================================
+RUN pip install --no-cache-dir \
+    torch==2.1.0+cpu \
+    torchvision==0.16.0+cpu \
+    --index-url https://download.pytorch.org/whl/cpu
 
-# Install Python dependencies with optimizations for cloud deployment
+# ============================================================
+# STAGE 2: Install TensorFlow CPU (installed separately to reduce peak memory)
+# ============================================================
+RUN pip install --no-cache-dir tensorflow-cpu==2.15.0
+
+# ============================================================
+# STAGE 3: Install remaining dependencies
+# ============================================================
+COPY requirements.txt .
 RUN pip install --no-cache-dir \
     --default-timeout=300 \
     --retries=5 \
