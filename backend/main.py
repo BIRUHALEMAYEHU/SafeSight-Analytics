@@ -25,9 +25,10 @@ app = FastAPI(
 )
 
 # Configure CORS to allow frontend connections
+cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],  # Vite default port
+    allow_origins=cors_origins + ["https://*.onrender.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -116,3 +117,7 @@ async def root():
         "status": "running"
     }
 
+@app.get("/health")
+async def health():
+    """Health check endpoint for deployment platforms"""
+    return {"status": "healthy"}
