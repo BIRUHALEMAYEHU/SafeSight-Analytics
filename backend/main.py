@@ -30,11 +30,11 @@ app = FastAPI(
 )
 
 # Configure CORS to allow frontend connections
-cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
+cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000,https://safesight-frontend.onrender.com").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins + ["https://*.onrender.com"],
-    allow_credentials=True,
+    allow_origins=cors_origins,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
