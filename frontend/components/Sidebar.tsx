@@ -200,11 +200,10 @@ export default function Sidebar() {
               <button
                 key={item.path}
                 onClick={() => router.push(item.path)}
-                className={`w-full rounded-lg border px-4 py-3 text-left font-mono text-sm transition-all ${
-                  isActive
+                className={`w-full rounded-lg border px-4 py-3 text-left font-mono text-sm transition-all ${isActive
                     ? "border-cyan-500/50 bg-cyan-500/10 text-cyan-400 shadow-lg shadow-cyan-500/20"
                     : "border-slate-800/60 bg-slate-900/40 text-slate-400 hover:border-slate-700 hover:bg-slate-900/60 hover:text-slate-300"
-                }`}
+                  }`}
               >
                 <span className="mr-2">{item.icon}</span>
                 {item.name}
@@ -314,7 +313,7 @@ export default function Sidebar() {
             </span>
           </div>
           <div className="mb-2 font-mono text-xs text-slate-500">
-            {user?.name || "Operator"}
+            {user?.full_name || user?.username || "Operator"}
           </div>
           <div className="flex items-center justify-between">
             <span className="font-mono text-xs text-slate-500">
