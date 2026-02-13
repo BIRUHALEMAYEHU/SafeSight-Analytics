@@ -6,17 +6,22 @@ FastAPI REST API for the SafeSight Analytics system
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from fastapi.middleware.cors import CORSMiddleware
 # from utils.camera import VideoCamera  # DISABLED for cloud deployment - vision service handles video processing 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi import Depends, HTTPException
-from app.db.session import get_db
+from app.db.session import get_db, engine
+from app.db.base import Base
 from app.models.camera import Camera as CameraModel
+from app.models.user import User
+from app.models import *  # Import all models so Base.metadata knows about them
 from fastapi.staticfiles import StaticFiles
 from app.api.api_v1.api import api_router
 import asyncio
 import os
+from passlib.context import CryptContext
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 app = FastAPI(
     title="SafeSight Analytics API",
@@ -34,6 +39,33 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+async def startup():
+    """Create tables and seed admin user on startup"""
+    # Create all tables
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    print("✅ Database tables created/verified")
+    
+    # Seed default admin user if not exists
+    from app.db.session import AsyncSessionLocal
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(User).where(User.username == "admin"))
+        admin = result.scalars().first()
+        if not admin:
+            admin_user = User(
+                username="admin",
+                hashed_password=pwd_context.hash("admin123"),
+                email="admin@safesight.com",
+                full_name="System Administrator",
+                role="admin",
+                is_active=True
+            )
+            session.add(admin_user)
+            await session.commit()
+            print("✅ Default admin user created (username: admin, password: admin123)")
+        else:
+            print("✅ Admin user already exists")
 
 
 if not os.path.exists("static"):
