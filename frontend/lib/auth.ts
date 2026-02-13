@@ -8,7 +8,9 @@ export interface User {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
     ? `${process.env.NEXT_PUBLIC_API_URL}/api/v1`
-    : "http://localhost:8000/api/v1";
+    : (typeof window !== "undefined" && window.location.hostname !== "localhost"
+        ? "https://safesight-backend.onrender.com/api/v1"
+        : "http://localhost:8000/api/v1");
 
 export async function login(username: string, password: string): Promise<void> {
     const formData = new URLSearchParams();
