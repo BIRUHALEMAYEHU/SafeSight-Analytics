@@ -49,7 +49,8 @@ interface SecurityEvent {
 const navItems: NavItem[] = [
   { name: "Control Center", path: "/dashboard", icon: "⚡" },
   { name: "Vision Nodes", path: "/dashboard/cameras", icon: "📹" },
-  { name: "Threat Database", path: "/dashboard/threats", icon: "🔍" },
+  { name: "Threat Database", path: "/dashboard/persons", icon: "🔍" },
+  { name: "Security Events", path: "/dashboard/events", icon: "🔔" },
 ];
 
 export default function Sidebar() {
