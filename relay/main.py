@@ -209,7 +209,11 @@ def _capture_loop(session: CameraSession) -> None:
             while not session.stop_event.is_set():
                 ok, frame = capture.read()
                 if not ok or frame is None:
-                    raise RuntimeError("Stream read failed")
+                    # If it's a local video file like .mp4, loop it!
+                    if isinstance(source, str) and source.lower().endswith((".mp4", ".mov", ".avi")):
+                        capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                        continue
+                    raise RuntimeError("Stream read failed or video ended")
 
                 encoded, buffer = cv2.imencode(
                     ".jpg",
