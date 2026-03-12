@@ -19,6 +19,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { getCameraStreamUrl } from "@/lib/stream";
 
 interface MonitorCardProps {
   cameraId?: number;
@@ -26,32 +27,53 @@ interface MonitorCardProps {
   streamUrl?: string;
   isOnline?: boolean;
   priority?: "high" | "normal";
+  analysisEnabled?: boolean;
+}
+
+interface AnalysisObject {
+  type: string;
+  count: number;
+  confidence: number;
+}
+
+interface AnalysisThreat {
+  type: string;
+  detected: boolean;
+  confidence: number;
+  description?: string;
+}
+
+interface AnalysisResult {
+  threatLevel?: string;
+  summary?: string;
+  objects: AnalysisObject[];
+  threats: AnalysisThreat[];
 }
 
 export default function MonitorCard({
   cameraId,
   cameraName,
-  streamUrl = "http://localhost:5000/video_feed",
+  streamUrl,
   isOnline = true,
   priority = "normal",
+  analysisEnabled = false,
 }: MonitorCardProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [streamError, setStreamError] = useState(false);
+  const [failedStreams, setFailedStreams] = useState<Record<string, boolean>>({});
   const [showControls, setShowControls] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLImageElement>(null);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Add camera_id query param if provided
-  const streamSrc = cameraId
-    ? `${streamUrl}?camera_id=${cameraId}`
-    : streamUrl;
+  const streamSrc = streamUrl ?? (cameraId ? getCameraStreamUrl(cameraId) : "");
+  const streamError = !!streamSrc && !!failedStreams[streamSrc];
 
   // Recording timer
   useEffect(() => {
@@ -158,6 +180,11 @@ export default function MonitorCard({
   };
 
   const handleAnalyze = async () => {
+    if (!analysisEnabled) {
+      showToast("Analysis will be enabled in the next integration pass", "error");
+      return;
+    }
+
     if (!videoRef.current || streamError) {
       showToast("Camera offline - cannot analyze", "error");
       return;
@@ -279,7 +306,7 @@ export default function MonitorCard({
 
         {/* Video Stream Container */}
         <div className="relative w-full aspect-video bg-slate-950">
-          {streamError ? (
+          {streamError || !streamSrc ? (
             <div className="flex items-center justify-center h-full bg-slate-900/50 relative overflow-hidden">
               {/* Glitch Effect Placeholder */}
               <div className="absolute inset-0 bg-gradient-to-br from-red-900/20 to-slate-900/50 animate-pulse" />
@@ -299,7 +326,12 @@ export default function MonitorCard({
               src={streamSrc}
               alt={`${cameraName} stream`}
               className="w-full h-full object-cover"
-              onError={() => setStreamError(true)}
+              onError={() =>
+                setFailedStreams((prev) => ({
+                  ...prev,
+                  [streamSrc]: true,
+                }))
+              }
               crossOrigin="anonymous"
             />
           )}
@@ -369,9 +401,10 @@ export default function MonitorCard({
           {/* AI Analyze Button */}
           <button
             onClick={handleAnalyze}
-            disabled={isAnalyzing || streamError}
+            disabled={!analysisEnabled || isAnalyzing || streamError}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600/80 hover:bg-indigo-700/90 text-white border border-indigo-500/50 transition-colors font-mono text-xs disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Analyze with AI"
+            title={analysisEnabled ? "Analyze with AI" : "Analysis will be enabled in the next pass"}
           >
             {isAnalyzing ? (
               <>
@@ -381,7 +414,7 @@ export default function MonitorCard({
             ) : (
               <>
                 <span>🤖</span>
-                <span>Analyze</span>
+                <span>{analysisEnabled ? "Analyze" : "Analyze Soon"}</span>
               </>
             )}
           </button>
@@ -465,7 +498,7 @@ export default function MonitorCard({
                     Detected Objects
                   </h4>
                   <div className="space-y-2">
-                    {analysisResult.objects.map((obj: any, idx: number) => (
+                    {analysisResult.objects.map((obj: AnalysisObject, idx: number) => (
                       <div
                         key={idx}
                         className="flex justify-between text-xs text-slate-300"
@@ -485,7 +518,7 @@ export default function MonitorCard({
                     Threat Detection
                   </h4>
                   <div className="space-y-2">
-                    {analysisResult.threats.map((threat: any, idx: number) => (
+                    {analysisResult.threats.map((threat: AnalysisThreat, idx: number) => (
                       <div
                         key={idx}
                         className={`rounded border p-2 text-xs ${

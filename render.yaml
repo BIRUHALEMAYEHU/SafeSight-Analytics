@@ -46,6 +46,27 @@ services:
           property: host
     healthCheckPath: /health
 
+  # Camera Relay Service
+  - type: web
+    name: safesight-camera-relay
+    env: docker
+    dockerfilePath: ./relay/Dockerfile
+    dockerContext: ./relay
+    plan: free
+    envVars:
+      - key: BACKEND_API_URL
+        fromService:
+          type: web
+          name: safesight-backend
+          property: host
+      - key: BACKEND_USERNAME
+        value: admin
+      - key: BACKEND_PASSWORD
+        value: admin123
+      - key: ENABLE_ANALYSIS
+        value: false
+    healthCheckPath: /health
+
   # Frontend Service
   - type: web
     name: safesight-frontend
@@ -58,6 +79,11 @@ services:
         fromService:
           type: web
           name: safesight-backend
+          property: host
+      - key: NEXT_PUBLIC_CAMERA_RELAY_URL
+        fromService:
+          type: web
+          name: safesight-camera-relay
           property: host
       - key: NEXTAUTH_URL
         value: https://safesight-frontend.onrender.com

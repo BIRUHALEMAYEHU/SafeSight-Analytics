@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import HeroFeed from "@/components/HeroFeed";
 import MonitorCard from "@/components/MonitorCard";
+import { getCameraStreamUrl } from "@/lib/stream";
 
 interface Camera {
   id: number;
@@ -116,7 +117,7 @@ export default function DashboardPage() {
             <HeroFeed
               cameraId={heroCam.id}
               cameraName={`${heroCam.name} — ${heroCam.location}`}
-              streamUrl={heroCam.rtsp_url}
+              streamUrl={getCameraStreamUrl(heroCam.id)}
               isOnline={heroCam.is_active}
             />
           </div>
@@ -134,8 +135,9 @@ export default function DashboardPage() {
                   key={cam.id}
                   cameraId={cam.id}
                   cameraName={`${cam.name} — ${cam.location}`}
-                  streamUrl={cam.rtsp_url}
+                  streamUrl={getCameraStreamUrl(cam.id)}
                   isOnline={cam.is_active}
+                  analysisEnabled={false}
                 />
               ))}
             </div>

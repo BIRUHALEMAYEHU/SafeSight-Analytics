@@ -1,7 +1,7 @@
 const DEFAULT_RELAY_URL =
   process.env.NEXT_PUBLIC_CAMERA_RELAY_URL ||
   (typeof window !== "undefined" && window.location.hostname !== "localhost"
-    ? "https://safesight-relay.onrender.com"
+    ? "https://safesight-camera-relay.onrender.com"
     : "http://localhost:5000");
 
 export function getCameraRelayBaseUrl(): string {

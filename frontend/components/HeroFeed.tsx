@@ -21,6 +21,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { getCameraStreamUrl } from "@/lib/stream";
 
 interface HeroFeedProps {
   cameraId?: number;
@@ -32,21 +33,20 @@ interface HeroFeedProps {
 export default function HeroFeed({
   cameraId,
   cameraName,
-  streamUrl = "http://localhost:5000/video_feed",
+  streamUrl,
   isOnline = true,
 }: HeroFeedProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [streamError, setStreamError] = useState(false);
+  const [failedStreams, setFailedStreams] = useState<Record<string, boolean>>({});
   const [recordingTime, setRecordingTime] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
   const cardRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLImageElement>(null);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const streamSrc = cameraId
-    ? `${streamUrl}?camera_id=${cameraId}`
-    : streamUrl;
+  const streamSrc = streamUrl ?? (cameraId ? getCameraStreamUrl(cameraId) : "");
+  const streamError = !!streamSrc && !!failedStreams[streamSrc];
 
   // Update timestamp every second
   useEffect(() => {
@@ -59,7 +59,6 @@ export default function HeroFeed({
   // Recording timer
   useEffect(() => {
     if (isRecording) {
-      setRecordingTime(0);
       recordingIntervalRef.current = setInterval(() => {
         setRecordingTime((prev) => prev + 1);
       }, 1000);
@@ -112,7 +111,7 @@ export default function HeroFeed({
   }, []);
 
   const handleSnapshot = () => {
-    if (videoRef.current) {
+    if (videoRef.current && !streamError) {
       const canvas = document.createElement("canvas");
       canvas.width = videoRef.current.naturalWidth;
       canvas.height = videoRef.current.naturalHeight;
@@ -128,6 +127,13 @@ export default function HeroFeed({
         document.body.removeChild(link);
       }
     }
+  };
+
+  const handleRecordToggle = () => {
+    if (!isRecording) {
+      setRecordingTime(0);
+    }
+    setIsRecording((prev) => !prev);
   };
 
   return (
@@ -193,14 +199,19 @@ export default function HeroFeed({
 
       {/* Video Feed with Scanning Overlay */}
       <div className="relative flex-1 overflow-hidden rounded-xl border border-slate-700 bg-slate-950">
-        {isOnline && !streamError ? (
+        {isOnline && !streamError && streamSrc ? (
           <>
             <img
               ref={videoRef}
               src={streamSrc}
               alt={`${cameraName} Live Feed`}
               className="h-full w-full object-cover"
-              onError={() => setStreamError(true)}
+              onError={() =>
+                setFailedStreams((prev) => ({
+                  ...prev,
+                  [streamSrc]: true,
+                }))
+              }
             />
             {/* Scanning Line Overlay */}
             <div className="pointer-events-none absolute inset-0">
@@ -227,7 +238,7 @@ export default function HeroFeed({
               📸 Snapshot
             </button>
             <button
-              onClick={() => setIsRecording(!isRecording)}
+              onClick={handleRecordToggle}
               className={`z-10 rounded-lg border px-4 py-2.5 font-mono text-sm font-medium backdrop-blur-md transition-all ${
                 isRecording
                   ? "border-red-500/70 bg-red-600/90 text-white hover:bg-red-500/90 shadow-lg shadow-red-500/30"

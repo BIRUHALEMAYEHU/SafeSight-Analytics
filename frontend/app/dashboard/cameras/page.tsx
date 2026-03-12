@@ -171,7 +171,7 @@ export default function CamerasPage() {
             <div className="space-y-3">
               {[
                 { label: "Camera Name", key: "name", placeholder: "e.g. Front Entrance" },
-                { label: "RTSP URL", key: "rtsp_url", placeholder: "rtsp://..." },
+                { label: "Camera Source URL", key: "rtsp_url", placeholder: "rtsp://... or http://..." },
                 { label: "Location", key: "location", placeholder: "e.g. Building A - Floor 1" },
               ].map(({ label, key, placeholder }) => (
                 <div key={key}>
