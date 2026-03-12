@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import threading
 import time
 from dataclasses import dataclass, field
@@ -21,6 +22,7 @@ ANALYZE_INTERVAL = float(os.getenv("ANALYZE_INTERVAL", "2.0"))
 RECONNECT_DELAY = float(os.getenv("RECONNECT_DELAY", "2.0"))
 FRAME_SLEEP = float(os.getenv("FRAME_SLEEP", "0.05"))
 JPEG_QUALITY = int(os.getenv("JPEG_QUALITY", "80"))
+DEMO_ASSETS_DIR = Path(os.getenv("DEMO_ASSETS_DIR", Path(__file__).resolve().parent / "assets"))
 
 
 app = Flask(__name__)
@@ -99,6 +101,29 @@ def _normalized_backend_api_url() -> str:
 
 def _camera_api_url(camera_id: int) -> str:
     return f"{_normalized_backend_api_url()}/cameras/{camera_id}"
+
+
+def _resolve_source(source: str) -> str:
+    if not isinstance(source, str):
+        return source
+
+    if not source.startswith("demo://"):
+        return source
+
+    demo_name = source[len("demo://") :].strip().strip("/")
+    if not demo_name:
+        raise RuntimeError("Demo source is missing a name")
+
+    candidate = (DEMO_ASSETS_DIR / demo_name).resolve()
+    if candidate.is_file():
+        return str(candidate)
+
+    for suffix in (".mp4", ".mov", ".avi"):
+        video_file = candidate.with_suffix(suffix)
+        if video_file.is_file():
+            return str(video_file)
+
+    raise RuntimeError(f"Demo video not found for source: {source}")
 
 
 def _login_for_token() -> Optional[str]:
@@ -191,6 +216,7 @@ def _capture_loop(session: CameraSession) -> None:
             source = camera.get("rtsp_url")
             if not source:
                 raise RuntimeError("Camera has no source URL configured")
+            resolved_source = _resolve_source(source)
 
             with session.lock:
                 session.latest_source = source
@@ -198,7 +224,7 @@ def _capture_loop(session: CameraSession) -> None:
                 session.last_error = None
                 session.captures_started += 1
 
-            capture = cv2.VideoCapture(source)
+            capture = cv2.VideoCapture(resolved_source)
             if not capture.isOpened():
                 raise RuntimeError(f"Unable to open source: {source}")
 
@@ -210,7 +236,7 @@ def _capture_loop(session: CameraSession) -> None:
                 ok, frame = capture.read()
                 if not ok or frame is None:
                     # If it's a local video file like .mp4, loop it!
-                    if isinstance(source, str) and source.lower().endswith((".mp4", ".mov", ".avi")):
+                    if isinstance(resolved_source, str) and resolved_source.lower().endswith((".mp4", ".mov", ".avi")):
                         capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
                         continue
                     raise RuntimeError("Stream read failed or video ended")
